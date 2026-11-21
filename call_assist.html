@@ -23,7 +23,7 @@ body { background: var(--bg); color: var(--text); height: 100dvh; display: flex;
 .btn-start { background: var(--success); color: white; }
 .btn-end { background: var(--danger); color: white; display: none; }
 .btn-memory { background: #475569; color: white; }
-.btn-auto { background: #8b5cf6; color: white; display: none; }
+.btn-auto { background: #8b5cf6; color: white; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Split Screen */
@@ -51,8 +51,6 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 .mic-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: #334155; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; touch-action: none; }
 .mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-.mic-btn:disabled { background: #1e293b; color: #475569; cursor: not-allowed; }
-.mic-btn.auto-active { background: var(--success); animation: pulse 2s infinite; }
 
 /* Text Input Row */
 .input-row { display: flex; gap: 10px; width: 100%; }
@@ -84,7 +82,7 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
     </div>
     <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
       <button class="btn btn-memory" onclick="toggleMemory()">🧠 ذاكرة الشركة</button>
-      <button class="btn btn-auto" id="autoModeBtn" onclick="toggleAutoMode()">🎙️ الوضع الآلي: متوقف</button>
+      <button class="btn btn-auto" id="autoModeBtn" onclick="toggleAutoMode()">🎙️ الوضع الآلي</button>
       <button class="btn btn-start" id="startCallBtn" onclick="startCall()">بدء المكالمة</button>
       <button class="btn btn-end" id="endCallBtn" onclick="endCall()">إنهاء</button>
     </div>
@@ -124,13 +122,12 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
           <option value="fr">Français</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
         </select>
       </div>
-      <button class="mic-btn" id="pttBtn" 
-              onpointerdown="startPTT(event)" onpointerup="stopPTT(event)" onpointerleave="stopPTT(event)" 
-              disabled>🎤</button>
+      <button class="mic-btn" id="pttBtn" onpointerdown="startPTT(event)" onpointerup="stopPTT(event)" onpointerleave="stopPTT(event)">🎤</button>
     </div>
     
+    <!-- شريط الكتابة يعمل دائماً حتى لو لم تبدأ المكالمة -->
     <div class="input-row">
-      <input type="text" id="manualInput" placeholder="أو اكتب رسالة هنا..." onkeypress="handleManualEnter(event)">
+      <input type="text" id="manualInput" placeholder="اكتب هنا للترجمة الفورية..." onkeypress="handleManualEnter(event)">
       <button onclick="sendManualText()">➤</button>
     </div>
   </div>
@@ -139,7 +136,7 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 <div class="modal" id="memoryModal">
   <div class="modal-content">
     <h3 style="margin-bottom:10px;">🧠 ذاكرة الشركة</h3>
-    <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">تُرسل هذه المعلومات للذكاء الاصطناعي مع كل ترجمة (سياسات، منتجات، أسعار...).</p>
+    <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">سياسات الشركة، المنتجات، الأسعار.</p>
     <textarea id="memoryText" placeholder="مثال: نحن شركة شحن، مدة التوصيل 3 أيام..."></textarea>
     <div style="display:flex; justify-content:flex-end; gap:10px;">
       <button class="btn btn-cancel" onclick="toggleMemory()">إغلاق</button>
@@ -207,27 +204,18 @@ function initSpeechRecognition() {
   
   recognition.onresult = (event) => {
     if (isAutoMode) {
-      // وضع الاستماع المستمر
       let interimTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          autoTextBuffer += event.results[i][0].transcript + ' ';
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
+        if (event.results[i].isFinal) autoTextBuffer += event.results[i][0].transcript + ' ';
+        else interimTranscript += event.results[i][0].transcript;
       }
-      
       document.getElementById('textEditor').value = autoTextBuffer + interimTranscript;
       
-      // إعادة تعيين مؤقت الصمت
       clearTimeout(silenceTimer);
       silenceTimer = setTimeout(() => {
-        if (autoTextBuffer.trim().length > 0 && !isProcessingAuto) {
-          triggerAutoTranslation();
-        }
-      }, 1500); // 1.5 ثانية صمت تعني أن العميل انتهى من الكلام
+        if (autoTextBuffer.trim().length > 0 && !isProcessingAuto) triggerAutoTranslation();
+      }, 1500);
     } else {
-      // الوضع اليدوي (PTT)
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
@@ -236,38 +224,22 @@ function initSpeechRecognition() {
     }
   };
 
-  recognition.onerror = (event) => {
-    console.error("Speech error", event.error);
-    if(!isAutoMode) stopPTT();
-  };
-
-  recognition.onend = () => {
-    // في الوضع الآلي، إذا توقف الميكروفون لأي سبب، نعيد تشغيله تلقائياً
-    if (isAutoMode && !isProcessingAuto && currentCallId) {
-      try { recognition.start(); } catch(e) {}
-    }
-  };
+  recognition.onerror = (event) => { if(!isAutoMode) stopPTT(); };
+  recognition.onend = () => { if (isAutoMode && !isProcessingAuto) { try { recognition.start(); } catch(e) {} } };
 }
 
-// ================= AUTO MODE LOGIC =================
 function toggleAutoMode() {
-  if (!currentCallId) return alert("ابدأ المكالمة أولاً لتشغيل الوضع الآلي.");
-  
   isAutoMode = !isAutoMode;
   const btn = document.getElementById('autoModeBtn');
-  const pttBtn = document.getElementById('pttBtn');
-  
   if (isAutoMode) {
-    btn.textContent = "🎙️ الوضع الآلي: يعمل";
     btn.style.background = "var(--danger)";
-    pttBtn.style.display = 'none'; // إخفاء زر المايك اليدوي
-    autoTextBuffer = "";
-    document.getElementById('textEditor').value = "";
+    btn.textContent = "🛑 إيقاف الآلي";
+    document.getElementById('pttBtn').style.display = 'none';
     startAutoRecognition();
   } else {
-    btn.textContent = "🎙️ الوضع الآلي: متوقف";
     btn.style.background = "#8b5cf6";
-    pttBtn.style.display = 'flex'; // إظهار زر المايك اليدوي
+    btn.textContent = "🎙️ الوضع الآلي";
+    document.getElementById('pttBtn').style.display = 'flex';
     try { recognition.stop(); } catch(e) {}
     clearTimeout(silenceTimer);
   }
@@ -280,45 +252,33 @@ function startAutoRecognition() {
   recognition.lang = langMap[lang] || 'en-US';
   autoTextBuffer = "";
   document.getElementById('textEditor').value = "";
-  try { recognition.start(); } catch(e) { console.log(e); }
+  try { recognition.start(); } catch(e) {}
 }
 
 async function triggerAutoTranslation() {
   isProcessingAuto = true;
-  recognition.stop(); // إيقاف الاستماع مؤقتاً لمنع سماع صوت الذكاء الاصطناعي
-  
+  recognition.stop(); 
   const text = autoTextBuffer.trim();
   autoTextBuffer = "";
   document.getElementById('textEditor').value = "";
-  
   const sourceLang = document.getElementById('agentLang').value;
   addMessage('agentChat', text, 'msg-original', sourceLang);
-  
-  await processTranslation(text, sourceLang, true); // true تعني أن هذا استدعاء آلي
-  
+  await processTranslation(text, sourceLang, true);
   isProcessingAuto = false;
-  if (isAutoMode) {
-    // الانتظار قليلاً ثم العودة للاستماع
-    setTimeout(startAutoRecognition, 500);
-  }
+  if (isAutoMode) setTimeout(startAutoRecognition, 500);
 }
 
-// ================= MANUAL PTT =================
 function startPTT(e) {
   if (e) e.preventDefault(); 
-  if (!currentCallId) return alert("ابدأ المكالمة أولاً");
   if (isRecording || !recognition || isAutoMode) return;
-  
   isRecording = true;
   document.getElementById('pttBtn').classList.add('recording');
   document.getElementById('editorContainer').style.display = 'block';
   document.getElementById('textEditor').value = "";
-  
   const lang = document.getElementById('agentLang').value;
   const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
   recognition.lang = langMap[lang] || 'en-US';
-  
-  try { recognition.start(); } catch(e) { console.log(e); }
+  try { recognition.start(); } catch(e) {}
 }
 
 function stopPTT(e) {
@@ -338,6 +298,7 @@ function handleManualEnter(e) {
   if (e.key === 'Enter') sendManualText();
 }
 
+// دالة الإرسال النصي - تعمل بدون الحاجة لبدء المكالمة
 function sendManualText() {
   const text = document.getElementById('manualInput').value.trim();
   if (!text) return;
@@ -356,55 +317,34 @@ async function sendForTranslation() {
   processTranslation(text, sourceLang, false);
 }
 
-// ================= API TRANSLATION =================
 async function processTranslation(text, sourceLang, isAuto) {
   const targetLang = document.getElementById('customerLang').value;
-  
   try {
     const res = await fetch(`${API_URL}/ai/translate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: text,
-        source_lang: sourceLang,
-        target_lang: targetLang,
-        company_memory: companyMemory,
-        mode: 'translate',
-        provider: 'auto'
+        text: text, source_lang: sourceLang, target_lang: targetLang,
+        company_memory: companyMemory, mode: 'translate', provider: 'auto'
       })
     });
     const data = await res.json();
-    
     if (data.translated) {
       addMessage('customerChat', data.translated, 'msg-translated', targetLang);
       speakText(data.translated, targetLang, isAuto);
-      logTurnToFirestore(text, data.translated, sourceLang, targetLang);
-    } else {
-      console.error("Translation failed");
-      if(!isAuto) alert("فشل الترجمة. تحقق من الخادم.");
+      if (currentCallId) logTurnToFirestore(text, data.translated, sourceLang, targetLang);
     }
-  } catch (e) {
-    console.error(e);
-    if(!isAuto) alert("خطأ في الاتصال بالخادم.");
-  }
+  } catch (e) { console.error(e); }
 }
 
-// TTS - تم تعديلها لتعمل مع الوضع الآلي
 function speakText(text, langCode, isAuto) {
   if (!window.speechSynthesis) return;
   const utterance = new SpeechSynthesisUtterance(text);
   const ttsMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
   utterance.lang = ttsMap[langCode] || 'en-US';
-  
   if (isAuto) {
-    utterance.onend = () => {
-      // بعد انتهاء الذكاء الاصطناعي من الكلام، ننتظر ثانية ونبدأ الاستماع
-      setTimeout(() => {
-        if(isAutoMode && !isProcessingAuto) startAutoRecognition();
-      }, 1000);
-    };
+    utterance.onend = () => { setTimeout(() => { if(isAutoMode && !isProcessingAuto) startAutoRecognition(); }, 1000); };
   }
-  
   speechSynthesis.speak(utterance);
 }
 
@@ -418,29 +358,18 @@ function addMessage(containerId, text, className, lang) {
   container.scrollTop = container.scrollHeight;
 }
 
-// ================= CALL TIMER & BILLING =================
 function startCall() {
   document.getElementById('startCallBtn').style.display = 'none';
   document.getElementById('endCallBtn').style.display = 'block';
-  document.getElementById('autoModeBtn').style.display = 'block';
-  document.getElementById('pttBtn').disabled = false;
-  
   currentCallId = db.collection('calls').doc().id;
   callStartTime = Date.now();
-  
-  db.collection('calls').doc(currentCallId).set({
-    agentId: currentUser.uid,
-    startAt: firebase.firestore.FieldValue.serverTimestamp(),
-    status: 'active'
-  }).catch(e => console.log("DB Error:", e));
-
+  db.collection('calls').doc(currentCallId).set({ agentId: currentUser.uid, startAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'active' }).catch(e => console.log(e));
   callInterval = setInterval(() => {
     const diff = Date.now() - callStartTime;
     const mins = Math.floor(diff / 60000);
     const secs = Math.floor((diff % 60000) / 1000);
     document.getElementById('timerDisplay').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    const cost = (diff / 60000) * pricePerMinute;
-    document.getElementById('costDisplay').textContent = `${cost.toFixed(2)} $`;
+    document.getElementById('costDisplay').textContent = `${((diff / 60000) * pricePerMinute).toFixed(2)} $`;
   }, 1000);
 }
 
@@ -448,23 +377,13 @@ async function endCall() {
   if (callInterval) clearInterval(callInterval);
   if (isRecording) stopPTT();
   if (isAutoMode) toggleAutoMode();
-  
   document.getElementById('startCallBtn').style.display = 'block';
   document.getElementById('endCallBtn').style.display = 'none';
-  document.getElementById('autoModeBtn').style.display = 'none';
-  document.getElementById('pttBtn').disabled = true;
-  
   if (currentCallId) {
     const durationSec = Math.floor((Date.now() - callStartTime) / 1000);
-    const totalCost = (durationSec / 60) * pricePerMinute;
     try {
-      await db.collection('calls').doc(currentCallId).update({
-        endAt: firebase.firestore.FieldValue.serverTimestamp(),
-        durationSec: durationSec,
-        totalCost: totalCost,
-        status: 'completed'
-      });
-    } catch(e) { console.log("DB Error:", e); }
+      await db.collection('calls').doc(currentCallId).update({ endAt: firebase.firestore.FieldValue.serverTimestamp(), durationSec, totalCost: (durationSec / 60) * pricePerMinute, status: 'completed' });
+    } catch(e) {}
   }
   document.getElementById('timerDisplay').textContent = "00:00";
   document.getElementById('costDisplay').textContent = "0.00 $";
@@ -473,12 +392,9 @@ async function endCall() {
 
 function logTurnToFirestore(original, translated, srcLang, destLang) {
   if (!currentCallId) return;
-  db.collection('calls').doc(currentCallId).collection('turns').add({
-    original: original, translated: translated, sourceLang: srcLang, targetLang: destLang, timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  }).catch(e => console.log("DB Log Error:", e));
+  db.collection('calls').doc(currentCallId).collection('turns').add({ original, translated, sourceLang: srcLang, targetLang: destLang, timestamp: firebase.firestore.FieldValue.serverTimestamp() }).catch(e => console.log(e));
 }
 
-// ================= COMPANY MEMORY =================
 function toggleMemory() {
   const modal = document.getElementById('memoryModal');
   modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
@@ -486,18 +402,12 @@ function toggleMemory() {
 async function loadCompanyMemory() {
   try {
     const doc = await db.collection('settings').doc('company_memory').get();
-    if (doc.exists) {
-      companyMemory = doc.data().content || "";
-      document.getElementById('memoryText').value = companyMemory;
-    }
-  } catch(e) { console.log(e); }
+    if (doc.exists) { companyMemory = doc.data().content || ""; document.getElementById('memoryText').value = companyMemory; }
+  } catch(e) {}
 }
 async function saveMemory() {
   const text = document.getElementById('memoryText').value;
-  try {
-    await db.collection('settings').doc('company_memory').set({ content: text });
-    companyMemory = text; toggleMemory(); alert("تم الحفظ.");
-  } catch(e) { alert("خطأ: " + e.message); }
+  try { await db.collection('settings').doc('company_memory').set({ content: text }); companyMemory = text; toggleMemory(); alert("تم الحفظ."); } catch(e) { alert("خطأ: " + e.message); }
 }
 </script>
 </body>
