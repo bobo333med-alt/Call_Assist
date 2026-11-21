@@ -23,6 +23,7 @@ body { background: var(--bg); color: var(--text); height: 100dvh; display: flex;
 .btn-start { background: var(--success); color: white; }
 .btn-end { background: var(--danger); color: white; display: none; }
 .btn-memory { background: #475569; color: white; }
+.btn-auto { background: #8b5cf6; color: white; display: none; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Split Screen */
@@ -51,6 +52,7 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 .mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
 .mic-btn:disabled { background: #1e293b; color: #475569; cursor: not-allowed; }
+.mic-btn.auto-active { background: var(--success); animation: pulse 2s infinite; }
 
 /* Text Input Row */
 .input-row { display: flex; gap: 10px; width: 100%; }
@@ -80,27 +82,25 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
       <div class="timer-box" id="timerDisplay">00:00</div>
       <div class="cost-box" id="costDisplay">0.00 $</div>
     </div>
-    <div style="display:flex; gap:5px;">
+    <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
       <button class="btn btn-memory" onclick="toggleMemory()">🧠 ذاكرة الشركة</button>
+      <button class="btn btn-auto" id="autoModeBtn" onclick="toggleAutoMode()">🎙️ الوضع الآلي: متوقف</button>
       <button class="btn btn-start" id="startCallBtn" onclick="startCall()">بدء المكالمة</button>
       <button class="btn btn-end" id="endCallBtn" onclick="endCall()">إنهاء</button>
     </div>
   </div>
 
   <div class="split-view">
-    <!-- Agent Side -->
     <div class="side">
       <div class="side-header">الوكيل (أنت) - <span id="agentLangLabel">AR</span></div>
       <div class="chat-area" id="agentChat"></div>
     </div>
-    <!-- Customer Side -->
     <div class="side">
       <div class="side-header">العميل - <span id="customerLangLabel">DE</span></div>
       <div class="chat-area" id="customerChat"></div>
     </div>
   </div>
 
-  <!-- Editor Overlay -->
   <div style="padding: 0 10px;">
       <div id="editorContainer" class="editor-area">
         <div style="font-size:12px; color:#94a3b8; margin-bottom:5px;">عدّل النص قبل الترجمة:</div>
@@ -112,40 +112,23 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
       </div>
   </div>
 
-  <!-- Controls -->
   <div class="controls">
     <div class="controls-row">
       <div class="lang-selects">
-        <!-- إضافة اللغات الجديدة للوكيل -->
         <select id="agentLang" onchange="document.getElementById('agentLangLabel').innerText=this.value.toUpperCase()">
-          <option value="ar">العربية</option>
-          <option value="en">English</option>
-          <option value="fr">Français</option>
-          <option value="de">Deutsch</option>
-          <option value="es">Español</option>
-          <option value="it">Italiano</option>
-          <option value="nl">Nederlands</option>
+          <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option>
+          <option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
         </select>
-        <!-- إضافة اللغات الجديدة للعميل -->
         <select id="customerLang" onchange="document.getElementById('customerLangLabel').innerText=this.value.toUpperCase()">
-          <option value="de">Deutsch</option>
-          <option value="ar">العربية</option>
-          <option value="en">English</option>
-          <option value="fr">Français</option>
-          <option value="es">Español</option>
-          <option value="it">Italiano</option>
-          <option value="nl">Nederlands</option>
+          <option value="de">Deutsch</option><option value="ar">العربية</option><option value="en">English</option>
+          <option value="fr">Français</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
         </select>
       </div>
-      <!-- زر المايكروفون مع دعم اللمس للهواتف -->
       <button class="mic-btn" id="pttBtn" 
-              onpointerdown="startPTT(event)" 
-              onpointerup="stopPTT(event)" 
-              onpointerleave="stopPTT(event)" 
+              onpointerdown="startPTT(event)" onpointerup="stopPTT(event)" onpointerleave="stopPTT(event)" 
               disabled>🎤</button>
     </div>
     
-    <!-- شريط الكتابة اليدوية -->
     <div class="input-row">
       <input type="text" id="manualInput" placeholder="أو اكتب رسالة هنا..." onkeypress="handleManualEnter(event)">
       <button onclick="sendManualText()">➤</button>
@@ -153,12 +136,11 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
   </div>
 </div>
 
-<!-- Memory Modal -->
 <div class="modal" id="memoryModal">
   <div class="modal-content">
     <h3 style="margin-bottom:10px;">🧠 ذاكرة الشركة</h3>
     <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">تُرسل هذه المعلومات للذكاء الاصطناعي مع كل ترجمة (سياسات، منتجات، أسعار...).</p>
-    <textarea id="memoryText" placeholder="مثال: نحن شركة شحن، مدة التوصيل 3 أيام، سياسة الاسترجاع خلال 14 يوماً..."></textarea>
+    <textarea id="memoryText" placeholder="مثال: نحن شركة شحن، مدة التوصيل 3 أيام..."></textarea>
     <div style="display:flex; justify-content:flex-end; gap:10px;">
       <button class="btn btn-cancel" onclick="toggleMemory()">إغلاق</button>
       <button class="btn btn-start" onclick="saveMemory()">حفظ</button>
@@ -167,7 +149,6 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 </div>
 
 <script>
-// ================= CONFIG =================
 const firebaseConfig = {
   apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8",
   authDomain: "chat-core-app.firebaseapp.com",
@@ -181,7 +162,6 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const API_URL = "https://call-assist-ibj6.onrender.com"; 
 
-// ================= STATE =================
 let currentUser = null;
 let currentCallId = null;
 let callInterval = null;
@@ -191,7 +171,12 @@ let companyMemory = "";
 let recognition = null;
 let isRecording = false;
 
-// ================= AUTH =================
+// متغيرات الوضع الآلي
+let isAutoMode = false;
+let isProcessingAuto = false;
+let autoTextBuffer = "";
+let silenceTimer = null;
+
 function login() {
   const email = document.getElementById('email').value;
   const pass = document.getElementById('password').value;
@@ -212,50 +197,124 @@ auth.onAuthStateChanged(user => {
   }
 });
 
-// ================= SPEECH RECOGNITION (STT) =================
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    console.warn("متصفحك لا يدعم التعرف على الصوت. استخدم Chrome.");
-    return;
-  }
+  if (!SpeechRecognition) { alert("متصفحك لا يدعم التعرف على الصوت. استخدم Chrome."); return; }
+  
   recognition = new SpeechRecognition();
   recognition.continuous = true;
   recognition.interimResults = true;
   
   recognition.onresult = (event) => {
-    let finalTranscript = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
+    if (isAutoMode) {
+      // وضع الاستماع المستمر
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          autoTextBuffer += event.results[i][0].transcript + ' ';
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
       }
-    }
-    if (finalTranscript) {
-      document.getElementById('textEditor').value += finalTranscript + ' ';
+      
+      document.getElementById('textEditor').value = autoTextBuffer + interimTranscript;
+      
+      // إعادة تعيين مؤقت الصمت
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (autoTextBuffer.trim().length > 0 && !isProcessingAuto) {
+          triggerAutoTranslation();
+        }
+      }, 1500); // 1.5 ثانية صمت تعني أن العميل انتهى من الكلام
+    } else {
+      // الوضع اليدوي (PTT)
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+      }
+      if (finalTranscript) document.getElementById('textEditor').value += finalTranscript + ' ';
     }
   };
 
   recognition.onerror = (event) => {
     console.error("Speech error", event.error);
-    stopPTT();
+    if(!isAutoMode) stopPTT();
+  };
+
+  recognition.onend = () => {
+    // في الوضع الآلي، إذا توقف الميكروفون لأي سبب، نعيد تشغيله تلقائياً
+    if (isAutoMode && !isProcessingAuto && currentCallId) {
+      try { recognition.start(); } catch(e) {}
+    }
   };
 }
 
-// ================= PUSH-TO-TALK (MOBILE FRIENDLY) =================
+// ================= AUTO MODE LOGIC =================
+function toggleAutoMode() {
+  if (!currentCallId) return alert("ابدأ المكالمة أولاً لتشغيل الوضع الآلي.");
+  
+  isAutoMode = !isAutoMode;
+  const btn = document.getElementById('autoModeBtn');
+  const pttBtn = document.getElementById('pttBtn');
+  
+  if (isAutoMode) {
+    btn.textContent = "🎙️ الوضع الآلي: يعمل";
+    btn.style.background = "var(--danger)";
+    pttBtn.style.display = 'none'; // إخفاء زر المايك اليدوي
+    autoTextBuffer = "";
+    document.getElementById('textEditor').value = "";
+    startAutoRecognition();
+  } else {
+    btn.textContent = "🎙️ الوضع الآلي: متوقف";
+    btn.style.background = "#8b5cf6";
+    pttBtn.style.display = 'flex'; // إظهار زر المايك اليدوي
+    try { recognition.stop(); } catch(e) {}
+    clearTimeout(silenceTimer);
+  }
+}
+
+function startAutoRecognition() {
+  if (!recognition) return;
+  const lang = document.getElementById('agentLang').value;
+  const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
+  recognition.lang = langMap[lang] || 'en-US';
+  autoTextBuffer = "";
+  document.getElementById('textEditor').value = "";
+  try { recognition.start(); } catch(e) { console.log(e); }
+}
+
+async function triggerAutoTranslation() {
+  isProcessingAuto = true;
+  recognition.stop(); // إيقاف الاستماع مؤقتاً لمنع سماع صوت الذكاء الاصطناعي
+  
+  const text = autoTextBuffer.trim();
+  autoTextBuffer = "";
+  document.getElementById('textEditor').value = "";
+  
+  const sourceLang = document.getElementById('agentLang').value;
+  addMessage('agentChat', text, 'msg-original', sourceLang);
+  
+  await processTranslation(text, sourceLang, true); // true تعني أن هذا استدعاء آلي
+  
+  isProcessingAuto = false;
+  if (isAutoMode) {
+    // الانتظار قليلاً ثم العودة للاستماع
+    setTimeout(startAutoRecognition, 500);
+  }
+}
+
+// ================= MANUAL PTT =================
 function startPTT(e) {
   if (e) e.preventDefault(); 
   if (!currentCallId) return alert("ابدأ المكالمة أولاً");
-  if (isRecording || !recognition) return;
+  if (isRecording || !recognition || isAutoMode) return;
   
   isRecording = true;
   document.getElementById('pttBtn').classList.add('recording');
-  
-  const editorContainer = document.getElementById('editorContainer');
-  editorContainer.style.display = 'block';
+  document.getElementById('editorContainer').style.display = 'block';
   document.getElementById('textEditor').value = "";
   
   const lang = document.getElementById('agentLang').value;
-  // دعم التعرف على الصوت للغات الجديدة
   const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
   recognition.lang = langMap[lang] || 'en-US';
   
@@ -275,7 +334,6 @@ function cancelEdit() {
   document.getElementById('textEditor').value = "";
 }
 
-// ================= MANUAL TEXT INPUT =================
 function handleManualEnter(e) {
   if (e.key === 'Enter') sendManualText();
 }
@@ -284,25 +342,22 @@ function sendManualText() {
   const text = document.getElementById('manualInput').value.trim();
   if (!text) return;
   document.getElementById('manualInput').value = '';
-  
   const sourceLang = document.getElementById('agentLang').value;
   addMessage('agentChat', text, 'msg-original', sourceLang);
-  processTranslation(text, sourceLang);
+  processTranslation(text, sourceLang, false);
 }
 
-// ================= TRANSLATION & AI =================
 async function sendForTranslation() {
   const text = document.getElementById('textEditor').value.trim();
   if (!text) return cancelEdit();
-
   const sourceLang = document.getElementById('agentLang').value;
   document.getElementById('editorContainer').style.display = 'none';
-  
   addMessage('agentChat', text, 'msg-original', sourceLang);
-  processTranslation(text, sourceLang);
+  processTranslation(text, sourceLang, false);
 }
 
-async function processTranslation(text, sourceLang) {
+// ================= API TRANSLATION =================
+async function processTranslation(text, sourceLang, isAuto) {
   const targetLang = document.getElementById('customerLang').value;
   
   try {
@@ -322,27 +377,37 @@ async function processTranslation(text, sourceLang) {
     
     if (data.translated) {
       addMessage('customerChat', data.translated, 'msg-translated', targetLang);
-      speakText(data.translated, targetLang);
+      speakText(data.translated, targetLang, isAuto);
       logTurnToFirestore(text, data.translated, sourceLang, targetLang);
     } else {
-      alert("فشل الترجمة: " + JSON.stringify(data));
+      console.error("Translation failed");
+      if(!isAuto) alert("فشل الترجمة. تحقق من الخادم.");
     }
   } catch (e) {
     console.error(e);
-    alert("خطأ في الاتصال بالخادم. تأكد من أن الخادم يعمل.");
+    if(!isAuto) alert("خطأ في الاتصال بالخادم.");
   }
 }
 
-// TTS (Text-to-Speech) - دعم اللغات الجديدة
-function speakText(text, langCode) {
+// TTS - تم تعديلها لتعمل مع الوضع الآلي
+function speakText(text, langCode, isAuto) {
   if (!window.speechSynthesis) return;
   const utterance = new SpeechSynthesisUtterance(text);
   const ttsMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
   utterance.lang = ttsMap[langCode] || 'en-US';
+  
+  if (isAuto) {
+    utterance.onend = () => {
+      // بعد انتهاء الذكاء الاصطناعي من الكلام، ننتظر ثانية ونبدأ الاستماع
+      setTimeout(() => {
+        if(isAutoMode && !isProcessingAuto) startAutoRecognition();
+      }, 1000);
+    };
+  }
+  
   speechSynthesis.speak(utterance);
 }
 
-// ================= UI HELPERS =================
 function addMessage(containerId, text, className, lang) {
   const container = document.getElementById(containerId);
   const div = document.createElement('div');
@@ -357,6 +422,7 @@ function addMessage(containerId, text, className, lang) {
 function startCall() {
   document.getElementById('startCallBtn').style.display = 'none';
   document.getElementById('endCallBtn').style.display = 'block';
+  document.getElementById('autoModeBtn').style.display = 'block';
   document.getElementById('pttBtn').disabled = false;
   
   currentCallId = db.collection('calls').doc().id;
@@ -372,9 +438,7 @@ function startCall() {
     const diff = Date.now() - callStartTime;
     const mins = Math.floor(diff / 60000);
     const secs = Math.floor((diff % 60000) / 1000);
-    document.getElementById('timerDisplay').textContent = 
-      `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-      
+    document.getElementById('timerDisplay').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     const cost = (diff / 60000) * pricePerMinute;
     document.getElementById('costDisplay').textContent = `${cost.toFixed(2)} $`;
   }, 1000);
@@ -383,9 +447,11 @@ function startCall() {
 async function endCall() {
   if (callInterval) clearInterval(callInterval);
   if (isRecording) stopPTT();
+  if (isAutoMode) toggleAutoMode();
   
   document.getElementById('startCallBtn').style.display = 'block';
   document.getElementById('endCallBtn').style.display = 'none';
+  document.getElementById('autoModeBtn').style.display = 'none';
   document.getElementById('pttBtn').disabled = true;
   
   if (currentCallId) {
@@ -400,21 +466,15 @@ async function endCall() {
       });
     } catch(e) { console.log("DB Error:", e); }
   }
-  
   document.getElementById('timerDisplay').textContent = "00:00";
   document.getElementById('costDisplay').textContent = "0.00 $";
   currentCallId = null;
 }
 
-// ================= FIRESTORE LOGGING =================
 function logTurnToFirestore(original, translated, srcLang, destLang) {
   if (!currentCallId) return;
   db.collection('calls').doc(currentCallId).collection('turns').add({
-    original: original,
-    translated: translated,
-    sourceLang: srcLang,
-    targetLang: destLang,
-    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    original: original, translated: translated, sourceLang: srcLang, targetLang: destLang, timestamp: firebase.firestore.FieldValue.serverTimestamp()
   }).catch(e => console.log("DB Log Error:", e));
 }
 
@@ -423,7 +483,6 @@ function toggleMemory() {
   const modal = document.getElementById('memoryModal');
   modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
 }
-
 async function loadCompanyMemory() {
   try {
     const doc = await db.collection('settings').doc('company_memory').get();
@@ -431,17 +490,14 @@ async function loadCompanyMemory() {
       companyMemory = doc.data().content || "";
       document.getElementById('memoryText').value = companyMemory;
     }
-  } catch(e) { console.log("Memory load error:", e); }
+  } catch(e) { console.log(e); }
 }
-
 async function saveMemory() {
   const text = document.getElementById('memoryText').value;
   try {
     await db.collection('settings').doc('company_memory').set({ content: text });
-    companyMemory = text;
-    toggleMemory();
-    alert("تم حفظ ذاكرة الشركة بنجاح.");
-  } catch(e) { alert("خطأ في الحفظ: " + e.message); }
+    companyMemory = text; toggleMemory(); alert("تم الحفظ.");
+  } catch(e) { alert("خطأ: " + e.message); }
 }
 </script>
 </body>
