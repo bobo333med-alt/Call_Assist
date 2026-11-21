@@ -46,7 +46,7 @@ body { background: var(--bg); color: var(--text); height: 100dvh; display: flex;
 .controls { padding: 10px 15px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
 .controls-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .lang-selects { display: flex; gap: 5px; flex: 1; }
-select { padding: 8px; border-radius: 8px; background: #000; color: white; border: 1px solid #334155; font-size: 12px; flex: 1; }
+select { padding: 8px; border-radius: 8px; background: #000; color: white; border: 1px solid #334155; font-size: 12px; flex: 1; outline: none; }
 .mic-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: #334155; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; touch-action: none; }
 .mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
@@ -54,13 +54,13 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 
 /* Text Input Row */
 .input-row { display: flex; gap: 10px; width: 100%; }
-.input-row input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #334155; background: #000; color: white; outline: none; }
-.input-row button { background: var(--primary); border: none; border-radius: 50%; width: 45px; height: 45px; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.input-row input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #334155; background: #000; color: white; outline: none; font-size: 14px; }
+.input-row button { background: var(--primary); border: none; border-radius: 50%; width: 45px; height: 45px; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
 /* Company Memory Modal */
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
 .modal-content { background: var(--panel); padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid var(--border); }
-.modal-content textarea { width: 100%; height: 150px; background: #000; color: white; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; }
+.modal-content textarea { width: 100%; height: 150px; background: #000; color: white; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; outline: none; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -68,9 +68,9 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 <!-- Auth Screen -->
 <div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column;">
   <h2 style="margin-bottom:20px; color:var(--primary);">Call-Assist Agent Login</h2>
-  <input type="email" id="email" placeholder="Email" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px;">
-  <input type="password" id="password" placeholder="Password" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px;">
-  <button class="btn btn-start" onclick="login()" style="width:250px;">Login</button>
+  <input type="email" id="email" placeholder="Email" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
+  <input type="password" id="password" placeholder="Password" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
+  <button class="btn btn-start" onclick="login()" style="width:250px; padding:12px;">Login</button>
 </div>
 
 <!-- Main App -->
@@ -116,19 +116,28 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
   <div class="controls">
     <div class="controls-row">
       <div class="lang-selects">
+        <!-- إضافة اللغات الجديدة للوكيل -->
         <select id="agentLang" onchange="document.getElementById('agentLangLabel').innerText=this.value.toUpperCase()">
           <option value="ar">العربية</option>
           <option value="en">English</option>
           <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+          <option value="nl">Nederlands</option>
         </select>
+        <!-- إضافة اللغات الجديدة للعميل -->
         <select id="customerLang" onchange="document.getElementById('customerLangLabel').innerText=this.value.toUpperCase()">
           <option value="de">Deutsch</option>
           <option value="ar">العربية</option>
           <option value="en">English</option>
           <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+          <option value="nl">Nederlands</option>
         </select>
       </div>
-      <!-- تم تغيير الأحداث هنا لدعم اللمس -->
+      <!-- زر المايكروفون مع دعم اللمس للهواتف -->
       <button class="mic-btn" id="pttBtn" 
               onpointerdown="startPTT(event)" 
               onpointerup="stopPTT(event)" 
@@ -148,8 +157,8 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 <div class="modal" id="memoryModal">
   <div class="modal-content">
     <h3 style="margin-bottom:10px;">🧠 ذاكرة الشركة</h3>
-    <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">تُرسل هذه المعلومات للذكاء الاصطناعي مع كل ترجمة.</p>
-    <textarea id="memoryText" placeholder="أدخل سياسات الشركة، أسماء المنتجات، أو أي مصطلحات..."></textarea>
+    <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">تُرسل هذه المعلومات للذكاء الاصطناعي مع كل ترجمة (سياسات، منتجات، أسعار...).</p>
+    <textarea id="memoryText" placeholder="مثال: نحن شركة شحن، مدة التوصيل 3 أيام، سياسة الاسترجاع خلال 14 يوماً..."></textarea>
     <div style="display:flex; justify-content:flex-end; gap:10px;">
       <button class="btn btn-cancel" onclick="toggleMemory()">إغلاق</button>
       <button class="btn btn-start" onclick="saveMemory()">حفظ</button>
@@ -207,7 +216,7 @@ auth.onAuthStateChanged(user => {
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    console.warn("متصفحك لا يدعم التعرف على الصوت.");
+    console.warn("متصفحك لا يدعم التعرف على الصوت. استخدم Chrome.");
     return;
   }
   recognition = new SpeechRecognition();
@@ -234,7 +243,7 @@ function initSpeechRecognition() {
 
 // ================= PUSH-TO-TALK (MOBILE FRIENDLY) =================
 function startPTT(e) {
-  if (e) e.preventDefault(); // منع التمرير أو التحديد على الهاتف
+  if (e) e.preventDefault(); 
   if (!currentCallId) return alert("ابدأ المكالمة أولاً");
   if (isRecording || !recognition) return;
   
@@ -246,7 +255,9 @@ function startPTT(e) {
   document.getElementById('textEditor').value = "";
   
   const lang = document.getElementById('agentLang').value;
-  recognition.lang = lang === 'ar' ? 'ar-SA' : (lang === 'fr' ? 'fr-FR' : 'en-US');
+  // دعم التعرف على الصوت للغات الجديدة
+  const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
+  recognition.lang = langMap[lang] || 'en-US';
   
   try { recognition.start(); } catch(e) { console.log(e); }
 }
@@ -274,7 +285,6 @@ function sendManualText() {
   if (!text) return;
   document.getElementById('manualInput').value = '';
   
-  // عرض النص في شاشة الوكيل وإرساله للترجمة
   const sourceLang = document.getElementById('agentLang').value;
   addMessage('agentChat', text, 'msg-original', sourceLang);
   processTranslation(text, sourceLang);
@@ -319,15 +329,16 @@ async function processTranslation(text, sourceLang) {
     }
   } catch (e) {
     console.error(e);
-    alert("خطأ في الاتصال بالخادم");
+    alert("خطأ في الاتصال بالخادم. تأكد من أن الخادم يعمل.");
   }
 }
 
-// TTS
+// TTS (Text-to-Speech) - دعم اللغات الجديدة
 function speakText(text, langCode) {
   if (!window.speechSynthesis) return;
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = langCode === 'ar' ? 'ar-SA' : (langCode === 'de' ? 'de-DE' : (langCode === 'fr' ? 'fr-FR' : 'en-US'));
+  const ttsMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
+  utterance.lang = ttsMap[langCode] || 'en-US';
   speechSynthesis.speak(utterance);
 }
 
@@ -355,7 +366,7 @@ function startCall() {
     agentId: currentUser.uid,
     startAt: firebase.firestore.FieldValue.serverTimestamp(),
     status: 'active'
-  });
+  }).catch(e => console.log("DB Error:", e));
 
   callInterval = setInterval(() => {
     const diff = Date.now() - callStartTime;
@@ -380,12 +391,14 @@ async function endCall() {
   if (currentCallId) {
     const durationSec = Math.floor((Date.now() - callStartTime) / 1000);
     const totalCost = (durationSec / 60) * pricePerMinute;
-    await db.collection('calls').doc(currentCallId).update({
-      endAt: firebase.firestore.FieldValue.serverTimestamp(),
-      durationSec: durationSec,
-      totalCost: totalCost,
-      status: 'completed'
-    });
+    try {
+      await db.collection('calls').doc(currentCallId).update({
+        endAt: firebase.firestore.FieldValue.serverTimestamp(),
+        durationSec: durationSec,
+        totalCost: totalCost,
+        status: 'completed'
+      });
+    } catch(e) { console.log("DB Error:", e); }
   }
   
   document.getElementById('timerDisplay').textContent = "00:00";
@@ -402,7 +415,7 @@ function logTurnToFirestore(original, translated, srcLang, destLang) {
     sourceLang: srcLang,
     targetLang: destLang,
     timestamp: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  }).catch(e => console.log("DB Log Error:", e));
 }
 
 // ================= COMPANY MEMORY =================
