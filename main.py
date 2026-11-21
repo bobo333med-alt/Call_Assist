@@ -76,3 +76,67 @@ def extract_usage(resp):
     return {"prompt_tokens": int(u.get("prompt_tokens",0)),
             "completion_tokens": int(u.get("completion_tokens",0)),
             "total_tokens": int(u.get("total_tokens",0))}
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from ai_router import call_ai, extract_text, extract_usage
+
+app = FastAPI(title="Call-Assist API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+class AIRequest(BaseModel):
+    text: str
+    source_lang: str = "auto"
+    target_lang: str = "en"
+    company_memory: str = ""
+    mode: str = "translate"
+    provider: str = "auto"
+
+@app.get("/")
+def read_root():
+    return {"status": "Call-Assist Backend is Running"}
+
+@app.get("/call_assist.html")
+def get_call_assist():
+    return FileResponse("call_assist.html")
+
+@app.get("/admin.html")
+def get_admin():
+    return FileResponse("admin.html")
+
+@app.post("/ai/translate")
+async def ai_translate(req: AIRequest):
+    # الـ Prompt الجديد: يجمع بين الترجمة الدقيقة، الذكاء العاطفي، وتقمص شخصية الشركة
+    sys_prompt = f"""You are an elite, highly empathetic customer support agent for a professional company. 
+Your goal is to assist the customer based on the following company policies and knowledge base:
+--- COMPANY MEMORY ---
+{req.company_memory if req.company_memory.strip() else "No specific company rules provided. Be professional and helpful."}
+--- END ---
+
+Your tasks:
+1. Read the customer's message in {req.source_lang}.
+2. Understand their emotion (frustration, happiness, confusion).
+3. Formulate a response in {req.target_lang} that is professional, emotionally intelligent, and directly addresses their issue using the company memory. 
+4. Ensure the translation is natural, culturally appropriate, and fluent.
+5. Output ONLY the final translated response. No explanations, no quotes."""
+
+    resp = await call_ai(
+        [{"role":"system","content":sys_prompt},
+         {"role":"user","content":req.text}],
+        provider=req.provider, temperature=0.3, max_tokens=800,
+    )
+    
+    return {
+        "translated": extract_text(resp),
+        "provider": resp.get("_provider"),
+        "usage": extract_usage(resp),
+    }
