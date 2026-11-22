@@ -1,12 +1,12 @@
 import os
-from typing import List, Dict, Optional
-from fastapi import FastAPI
+from typing import List, Optional
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from ai_router import call_ai, extract_text, extract_usage
+from ai_router import call_ai, extract_text, extract_usage, get_client
 
-app = FastAPI(title="AI Call Center Agent API")
+app = FastAPI(title="AI Autonomous Call Center & Translator")
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,7 +16,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- نماذج البيانات (Schemas) ---
+@app.on_event("shutdown")
+async def shutdown_event():
+    client = get_client()
+    if not client.is_closed:
+        await client.aclose()
+
+# --- نماذج البيانات ---
 
 class AIRequest(BaseModel):
     text: str
@@ -27,7 +33,7 @@ class AIRequest(BaseModel):
     provider: str = "auto"
 
 class ChatTurn(BaseModel):
-    role: str  # "user" (الحريف) أو "assistant" (الوكيل)
+    role: str  # "user" أو "assistant"
     content: str
 
 class AgentChatRequest(BaseModel):
@@ -43,11 +49,12 @@ class SummarizeRequest(BaseModel):
     history: List[ChatTurn]
     provider: str = "auto"
 
-# --- مسارات الصفحات (Frontend Routes) ---
+# --- مسارات النظام والصفحات ---
 
 @app.get("/")
-def read_root():
-    return {"status": "AI Call Center Backend is Running"}
+@app.get("/health")
+def health_check():
+    return {"status": "online", "engine": "Ultra-Fast AI Call Center"}
 
 @app.get("/call_assist.html")
 def get_call_assist():
@@ -57,107 +64,113 @@ def get_call_assist():
 def get_admin():
     return FileResponse("admin.html")
 
-# --- مسار الوكيل الذكي للمحادثة والمكالمات (Autonomous Agent) ---
+# --- 1. مسار الوكيل المستقل للمكالمات والدردشة (Autonomous Agent) ---
 
 @app.post("/ai/agent-chat")
 async def ai_agent_chat(req: AgentChatRequest):
-    lang_instructions = {
-        "ar-TN": "تحدث بالدارجة التونسية المهذبة والواضحة (مزيج طبيعي مفهوم في تونس، مثل: عسلامة، مرحبا بيك، يعيشك، تفضل).",
+    lang_rules = {
+        "ar-TN": "تحدث بالدارجة التونسية المهذبة والواضحة والمفهومة جداً (مثل: عسلامة، مرحبا بيك، يعيشك، تفضل، شنوة نجم نعاونك).",
         "ar": "تحدث باللغة العربية الفصحى المبسطة والودودة.",
         "fr": "Parle uniquement en français professionnel, chaleureux et naturel.",
         "en": "Speak strictly in natural, warm, and professional English."
     }
-    selected_lang_rule = lang_instructions.get(req.agent_lang, lang_instructions["ar-TN"])
+    selected_lang = lang_rules.get(req.agent_lang, lang_rules["ar-TN"])
 
-    customer_context = ""
+    customer_info = ""
     if req.customer_name:
-        customer_context += f"\n- اسم الحريف المتصل به: {req.customer_name}"
+        customer_info += f"\n- اسم الحريف: {req.customer_name}"
     if req.customer_note:
-        customer_context += f"\n- معلومة إضافية عن الحريف: {req.customer_note}"
+        customer_info += f"\n- ملاحظة عن الحريف: {req.customer_note}"
 
-    sys_prompt = f"""أنت وكيل مركز نداء (Call Center Agent) محترف واسمك '{req.agent_name}'.
-مهمتك هي الرد على الحرفاء أو الاتصال بهم لخدمتهم وإقناعهم بناءً على معطيات الشركة فقط.
+    sys_prompt = f"""أنت وكيل مركز نداء ذكي (AI Call Center Agent) محترف جداً واسمك '{req.agent_name}'.
+مهمتك هي الرد على الحرفاء أو الاتصال بهم وإقناعهم وخدمتهم بدقة بناءً على ذاكرة الشركة فقط.
 
---- ذاكرة ومعلومات الشركة (Knowledge Base) ---
-{req.company_memory if req.company_memory.strip() else "لا توجد معلومات محددة. كن مهذباً واسأل الحريف كيف يمكنك مساعدته."}
---- نهاية الذاكرة ---
-{customer_context}
+=== ذاكرة ومعلومات الشركة (Knowledge Base) ===
+{req.company_memory if req.company_memory.strip() else "لا توجد معطيات محددة حالياً. رحب بالحريف واسأله بلطف كيف يمكنك مساعدته."}
+=== نهاية الذاكرة ===
+{customer_info}
 
-قواعد صارمة جداً (يجب الالتزام بها حرفياً):
-1. اللغة واللهجة: {selected_lang_rule}
-2. أسلوب الكلام الصوتي: ردودك ستُقرأ صوتياً عبر الهاتف! اجعل ردودك قصيرة ومباشرة (جملة أو جملتين كحد أقصى في كل رد) لكي لا يمل الحريف.
-3. ممنوع التنسيق النصي: لا تستخدم أبداً رموز مثل (* أو # أو - أو قوائم نقطية أو إيموجي) لأنها تُنطق بشكل سيء في المكالمات الصوتية.
-4. عدم التأليف (Zero Hallucination): إذا سألك الحريف عن سعر أو معلومة غير موجودة في ذاكرة الشركة، لا تخترع إجابة! قل له بلباقة أنك ستسجل سؤاله ليتواصل معه المختص.
-5. إنهاء المكالمة: إذا ودعك الحريف أو انتهت المكالمة، اختم ردك بكلمة [END_CALL] في آخر السطر.
+قواعد صارمة للأداء الصوتي الفائق:
+1. اللهجة واللغة: {selected_lang}
+2. الإيجاز الصوتي: ردودك تُنطق صوتياً في مكالمة هاتفية! اجعل ردك قصيراً ومركّزاً (جملة أو جملتين فقط) ليكون الحوار سريعاً وطبيعياً كالبشر.
+3. ممنوع الرموز: لا تكتب أبداً علامات مثل (* أو # أو - أو نقاط تعداد أو إيموجي) لأن قارئ الصوت ينطقها بشكل مزعج.
+4. الصدق المطلق: إذا سألك الحريف عن شيء غير موجود في ذاكرة الشركة، لا تؤلف أبداً! قل له بلباقة أنك ستسجل طلبه ليتصل به المختص.
+5. إنهاء المكالمة: إذا انتهت المكالمة وودعك الحريف، أضف [END_CALL] في نهاية ردك.
 
-ابدأ أو واصل المحادثة الآن بشكل طبيعي وذكي:"""
+تفاعل الآن بذكاء وسرعة:"""
 
     messages = [{"role": "system", "content": sys_prompt}]
     for turn in req.history:
         messages.append({"role": turn.role, "content": turn.content})
 
-    # إذا كانت المحادثة فارغة (بداية اتصال صادر من الوكيل بالحريف)
     if not req.history:
         messages.append({
-            "role": "user", 
-            "content": "الحريف رفع السماعة الآن وقال: ألو؟ (ابدأ المكالمة بالترحيب والتعريف بنفسك وبسبب الاتصال باختصار)."
+            "role": "user",
+            "content": "الحريف رد على الهاتف الآن وقال: ألو؟ (ابدأ المكالمة بالترحيب والتعريف بنفسك وبسبب الاتصال باختصار)."
         })
 
-    resp = await call_ai(
-        messages,
-        provider=req.provider,
-        temperature=0.3,
-        max_tokens=300,
-    )
+    try:
+        resp = await call_ai(
+            messages,
+            provider=req.provider,
+            temperature=0.25,
+            max_tokens=250,
+        )
+        raw_reply = extract_text(resp)
+        should_end = "[END_CALL]" in raw_reply
+        clean_reply = raw_reply.replace("[END_CALL]", "").strip()
 
-    raw_reply = extract_text(resp)
-    should_end = "[END_CALL]" in raw_reply
-    clean_reply = raw_reply.replace("[END_CALL]", "").strip()
+        return {
+            "reply": clean_reply,
+            "end_call": should_end,
+            "provider": resp.get("_provider"),
+            "usage": extract_usage(resp),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    return {
-        "reply": clean_reply,
-        "end_call": should_end,
-        "provider": resp.get("_provider"),
-        "usage": extract_usage(resp),
-    }
-
-# --- مسار تلخيص المكالمة تلقائياً بعد انتهائها ---
+# --- 2. مسار تلخيص المكالمة وحفظ النتيجة ---
 
 @app.post("/ai/summarize-call")
 async def ai_summarize_call(req: SummarizeRequest):
     if not req.history:
-        return {"summary": "مكالمة فارغة"}
+        return {"summary": "لم يتم التحدث في المكالمة"}
 
-    conversation_text = "\n".join([f"{'الحريف' if t.role=='user' else 'الوكيل'}: {t.content}" for t in req.history])
-    
-    sys_prompt = """أنت مشرف جودة في مركز نداء. لخص نتيجة المكالمة التالية في جملة واحدة قصيرة ومفيدة لصاحب المركز باللغة العربية (مثال: مهتم بالعرض وطلب الاتصال غداً، أو غير مهتم، أو تم تأكيد الحجز).
-    
-المحادثة:
-""" + conversation_text
+    convo = "\n".join([f"{'الحريف' if t.role=='user' else 'الوكيل'}: {t.content}" for t in req.history])
+    sys_prompt = "لخص نتيجة هذه المكالمة في جملة واحدة قصيرة وواضحة بالعربية لصاحب مركز النداء (مثال: مهتم وحجز موعد، غير مهتم، يطلب إعادة الاتصال):\n\n" + convo
 
-    resp = await call_ai(
-        [{"role": "system", "content": sys_prompt}],
-        provider=req.provider,
-        temperature=0.1,
-        max_tokens=100,
-    )
-    return {"summary": extract_text(resp)}
+    try:
+        resp = await call_ai([{"role": "system", "content": sys_prompt}], provider=req.provider, temperature=0.1, max_tokens=80)
+        return {"summary": extract_text(resp)}
+    except Exception as e:
+        return {"summary": "تعذر التلخيص: " + str(e)}
 
-# --- مسار الترجمة القديم (للحفاظ على توافق النظام) ---
+# --- 3. مسار الترجمة الفورية (مُحسَّن ومُصلح بالكامل) ---
 
 @app.post("/ai/translate")
 async def ai_translate(req: AIRequest):
-    sys_prompt = f"""You are a translator. Translate the following text from {req.source_lang} to {req.target_lang} strictly and naturally.
-Text: {req.text}"""
+    sys_prompt = f"""You are an elite, ultra-fast live call translator and customer support assistant.
+Company context: {req.company_memory if req.company_memory.strip() else "General professional support."}
 
-    resp = await call_ai(
-        [{"role": "system", "content": sys_prompt},
-         {"role": "user", "content": req.text}],
-        provider=req.provider, temperature=0.1, max_tokens=800,
-    )
-    
-    return {
-        "translated": extract_text(resp),
-        "provider": resp.get("_provider"),
-        "usage": extract_usage(resp),
-    }
+STRICT RULES:
+1. Translate/formulate the message from '{req.source_lang}' strictly into language code '{req.target_lang}'.
+2. Output ONLY the final text in '{req.target_lang}'. No explanations, no quotes, no prefixes.
+3. Keep it natural and conversational for voice synthesis."""
+
+    try:
+        resp = await call_ai(
+            [
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": req.text}
+            ],
+            provider=req.provider,
+            temperature=0.1,
+            max_tokens=400,
+        )
+        return {
+            "translated": extract_text(resp),
+            "provider": resp.get("_provider"),
+            "usage": extract_usage(resp),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
