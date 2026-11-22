@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الوكيل الصوتي المستقل | AI Autonomous Agent</title>
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<style>
+:root {
+  --bg: #090d16; --panel: #131b2e; --border: rgba(255,255,255,0.08);
+  --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --purple: #8b5cf6; --text: #f8fafc;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+body { background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Header & Speed Telemetry */
+.header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 10px; }
+.telemetry { display: flex; gap: 12px; font-size: 12px; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); }
+.telemetry span b { color: #38bdf8; }
+
+/* Main Layout */
+.main { flex: 1; display: flex; flex-direction: column; max-width: 900px; width: 100%; margin: 0 auto; padding: 15px; gap: 15px; overflow: hidden; }
+
+/* Agent Visualizer Card */
+.agent-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; position: relative; }
+.avatar { width: 75px; height: 75px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--purple)); display: flex; align-items: center; justify-content: center; font-size: 32px; box-shadow: 0 0 25px rgba(59, 130, 246, 0.4); transition: 0.3s; }
+.avatar.speaking { animation: pulse-speak 1s infinite; box-shadow: 0 0 35px rgba(16, 185, 129, 0.8); background: var(--success); }
+.avatar.listening { animation: pulse-listen 1.2s infinite; box-shadow: 0 0 35px rgba(239, 68, 68, 0.8); background: var(--danger); }
+@keyframes pulse-speak { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+@keyframes pulse-listen { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+
+.status-pill { font-size: 13px; padding: 4px 14px; border-radius: 20px; background: rgba(255,255,255,0.06); color: #94a3b8; }
+.customer-banner { font-size: 14px; color: #fbbf24; font-weight: bold; }
+
+/* Controls */
+.action-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.btn { padding: 10px 18px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; color: white; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
+.btn-campaign { background: var(--purple); }
+.btn-inbound { background: var(--success); }
+.btn-hangup { background: var(--danger); display: none; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Live Transcript */
+.chat-box { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.bubble { max-width: 80%; padding: 10px 15px; border-radius: 14px; font-size: 14px; line-height: 1.5; }
+.bubble-ai { align-self: flex-start; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #e0f2fe; border-bottom-right-radius: 4px; }
+.bubble-user { align-self: flex-end; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #f8fafc; border-bottom-left-radius: 4px; }
+.bubble-meta { font-size: 10px; opacity: 0.6; margin-bottom: 4px; display: block; }
+
+/* Text Fallback Input */
+.input-bar { display: flex; gap: 10px; }
+.input-bar input { flex: 1; padding: 12px 16px; border-radius: 12px; border: 1px solid #334155; background: var(--panel); color: white; outline: none; font-size: 14px; }
+.input-bar button { padding: 0 20px; border-radius: 12px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div id="authOverlay" style="position:fixed; inset:0; background:var(--bg); z-index:999; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:12px;">
+  <h2 style="color:var(--primary);">تشغيل الوكيل الآلي</h2>
+  <input type="email" id="email" placeholder="البريد الإلكتروني" style="padding:10px; width:260px; border-radius:8px; border:1px solid #334155; background:#131b2e; color:white;">
+  <input type="password" id="password" placeholder="كلمة المرور" style="padding:10px; width:260px; border-radius:8px; border:1px solid #334155; background:#131b2e; color:white;">
+  <button class="btn btn-inbound" style="width:260px; justify-content:center;" onclick="login()">دخول</button>
+</div>
+
+<div class="header">
+  <div style="font-weight:bold; font-size:16px;">🤖 AI Call Center Agent</div>
+  <div class="telemetry">
+    <span>السرعة: <b id="tpsDisplay">0</b> tok/s</span>
+    <span>الزمن: <b id="latencyDisplay">0</b> ms</span>
+    <span>المحرك: <b id="providerDisplay">-</b></span>
+  </div>
+  <a href="admin.html" style="color:#93c5fd; font-size:13px; text-decoration:none;">⚙️ لوحة المدير</a>
+</div>
+
+<div class="main">
+  <div class="agent-card">
+    <div class="avatar" id="agentAvatar">🤖</div>
+    <div style="font-weight:bold; font-size:18px;" id="agentTitle">الوكيل الذكي جاهز</div>
+    <div class="status-pill" id="statusText">في انتظار بدء الحملة أو استقبال مكالمة</div>
+    <div class="customer-banner" id="currentLeadInfo"></div>
+
+    <div class="action-bar">
+      <button class="btn btn-campaign" id="btnCampaign" onclick="startOutboundCampaign()">🚀 بدء حملة الاتصال الآلي بالحرفاء</button>
+      <button class="btn btn-inbound" id="btnInbound" onclick="startInboundCall()">📞 محاكاة مكالمة واردة من حريف</button>
+      <button class="btn btn-hangup" id="btnHangup" onclick="endCurrentCall(true)">🛑 إنهاء المكالمة وحفظ الملخص</button>
+    </div>
+  </div>
+
+  <div class="chat-box" id="chatBox"></div>
+
+  <div class="input-bar">
+    <input type="text" id="userTextInput" placeholder="تحدث بصوتك أو اكتب هنا كأنك الحريف للاختبار..." onkeypress="if(event.key==='Enter') handleUserText()">
+    <button onclick="handleUserText()">إرسال</button>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8",
+  authDomain: "://firebaseapp.com",
+  projectId: "chat-core-app",
+  storageBucket: "chat-core-app.firebasestorage.app",
+  messagingSenderId: "216958872856",
+  appId: "1:216958872856:web:f03d559611b327c91b426d"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const API_URL = "https://onrender.com";
+
+let agentSettings = { agentName: "سارة", agentLang: "ar-TN", content: "" };
+let conversationHistory = [];
+let isCallActive = false;
+let isCampaignRunning = false;
+let currentLead = null;
+let recognition = null;
+let isSpeaking = false;
+
+function login() {
+  auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value)
+    .catch(e => alert(e.message));
+}
+
+auth.onAuthStateChanged(async user => {
+  if (user) {
+    document.getElementById('authOverlay').style.display = 'none';
+    await loadAgentMemory();
+    setupSpeechRecognition();
+  }
+});
+
+async function loadAgentMemory() {
+  const doc = await db.collection('settings').doc('company_memory').get();
+  if (doc.exists) {
+    const d = doc.data();
+    agentSettings.agentName = d.agentName || "سارة";
+    agentSettings.agentLang = d.agentLang || "ar-TN";
+    agentSettings.content = d.content || "";
+    document.getElementById('agentTitle').innerText = `الوكيل: ${agentSettings.agentName}`;
+  }
+}
+
+function setupSpeechRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  recognition = new SR();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.onstart = () => {
+    if (!isSpeaking && isCallActive) {
+      setVisualState('listening', '🎙️ الوكيل يستمع لكلام الحريف الآن...');
+    }
+  };
+
+  recognition.onresult = async (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    if (transcript && isCallActive) {
+      await processCustomerTurn(transcript);
+    }
+  };
+
+  recognition.onend = () => {
+    if (isCallActive && !isSpeaking) {
+      try { recognition.start(); } catch(e) {}
+    }
+  };
+}
+
+function startListening() {
+  if (!recognition || !isCallActive || isSpeaking) return;
+  const langMap = { 'ar-TN': 'ar-TN', 'ar': 'ar-SA', 'fr': 'fr-FR', 'en': 'en-US' };
+  recognition.lang = langMap[agentSettings.agentLang] || 'ar-TN';
+  try { recognition.start(); } catch(e) {}
+}
+
+function stopListening() {
+  if (recognition) { try { recognition.stop(); } catch(e) {} }
+}
+
+// 1. وضع الحملة الصادرة الآلية (يتصل بالحرفاء من قاعدة البيانات واحداً تلو الآخر)
+async function startOutboundCampaign() {
+  await loadAgentMemory();
+  isCampaignRunning = true;
+  await callNextPendingLead();
+}
+
+async function callNextPendingLead() {
+  if (!isCampaignRunning) return;
+  setVisualState('idle', '🔍 جاري البحث عن الحريف التالي في القائمة...');
+  
+  const snap = await db.collection('leads').where('status', '==', 'pending').limit(1).get();
+  if (snap.empty) {
+    isCampaignRunning = false;
+    setVisualState('idle', '✅ اكتملت الحملة! تم الاتصال بجميع الحرفاء في القائمة.');
+    document.getElementById('currentLeadInfo').innerText = '';
+    toggleCallButtons(false);
+    return;
+  }
+
+  const doc = snap.docs[0];
+  currentLead = { id: doc.id, ...doc.data() };
+  document.getElementById('currentLeadInfo').innerText = `📲 جاري الاتصال بـ: ${currentLead.name} (${currentLead.phone})`;
+  
