@@ -63,6 +63,9 @@ def get_call_assist():
 @app.get("/admin.html")
 def get_admin():
     return FileResponse("admin.html")
+@app.get("/agent_call.html")
+def get_agent_call():
+    return FileResponse("agent_call.html")
 
 # --- 1. مسار الوكيل المستقل للمكالمات والدردشة (Autonomous Agent) ---
 
