@@ -3,213 +3,116 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Call-Assist | AI Call Center</title>
-
-<!-- روابط مكتبات Firebase الصحيحة -->
-<script src="https://gstatic.com"></script>
-<script src="https://gstatic.com"></script>
-<script src="https://gstatic.com"></script>
-
+<title>Call-Assist | Agent App</title>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <style>
 :root {
-  --bg: #0f172a; --panel: #1e293b; --border: rgba(255,255,255,0.1);
-  --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --purple: #8b5cf6; --text: #f8fafc;
+ --bg: #0f172a; --panel: rgba(30, 41, 59, 0.7); --border: rgba(255,255,255,0.1);
+ --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --text: #f8fafc;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; touch-action: manipulation; }
 body { background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-.top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 8px; }
-.btn { padding: 8px 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; color: white; transition: 0.2s; }
-.btn:hover { opacity: 0.9; }
+
+/* Top Bar */
+.top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 10px; }
+.timer-box { font-size: 18px; font-weight: bold; font-variant-numeric: tabular-nums; color: #fbbf24; }
+.cost-box { font-size: 12px; color: #94a3b8; }
+.btn { padding: 8px 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; }
+.btn-start { background: var(--success); color: white; }
+.btn-end { background: var(--danger); color: white; display: none; }
+.btn-memory { background: #475569; color: white; }
+.btn-auto { background: #8b5cf6; color: white; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-start { background: var(--success); }
-.btn-end { background: var(--danger); }
-.btn-memory { background: #475569; }
-.btn-auto { background: var(--purple); }
-.panel-box { flex: 1; display: flex; flex-direction: column; padding: 12px; gap: 10px; overflow-y: auto; }
-.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
-input, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #090d16; color: white; font-size: 14px; outline: none; }
-.chat-area { flex: 1; min-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; }
-.msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; max-width: 85%; line-height: 1.5; }
-.msg-ai { align-self: flex-start; background: rgba(59, 130, 246, 0.2); border-right: 3px solid var(--primary); }
-.msg-user { align-self: flex-end; background: rgba(255,255,255,0.08); border-left: 3px solid #94a3b8; }
-.input-row { display: flex; gap: 8px; padding: 10px; background: var(--panel); border-top: 1px solid var(--border); }
-.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
-.modal-content { background: #1e293b; padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
-th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border); }
+
+/* Split Screen */
+.split-view { display: flex; flex: 1; gap: 10px; padding: 10px; overflow: hidden; flex-direction: column; }
+@media (min-width: 768px) { .split-view { flex-direction: row; } }
+.side { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; padding: 10px; overflow: hidden; }
+.side-header { text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--border); color: #94a3b8; font-size: 14px; }
+.chat-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+.msg-original { background: rgba(255,255,255,0.05); border-right: 3px solid #64748b; }
+.msg-translated { background: rgba(59, 130, 246, 0.1); border-right: 3px solid var(--primary); color: #93c5fd; }
+
+/* Editor (Zero-Data Loss) */
+.editor-area { display: none; margin-top: 10px; background: #000; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
+.editor-area textarea { width: 100%; height: 60px; background: transparent; border: none; color: white; resize: none; outline: none; font-size: 14px; }
+.editor-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px; }
+.btn-send { background: var(--primary); color: white; padding: 5px 15px; font-size: 12px; }
+.btn-cancel { background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 5px 15px; font-size: 12px; }
+
+/* Bottom Controls */
+.controls { padding: 10px 15px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.controls-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.lang-selects { display: flex; gap: 5px; flex: 1; }
+select { padding: 8px; border-radius: 8px; background: #000; color: white; border: 1px solid #334155; font-size: 12px; flex: 1; outline: none; }
+.mic-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: #334155; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; touch-action: none; }
+.mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
+@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+
+/* Text Input Row */
+.input-row { display: flex; gap: 10px; width: 100%; }
+.input-row input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #334155; background: #000; color: white; outline: none; font-size: 14px; }
+.input-row button { background: var(--primary); border: none; border-radius: 50%; width: 45px; height: 45px; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* Company Memory Modal */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
+.modal-content { background: var(--panel); padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid var(--border); }
+.modal-content textarea { width: 100%; height: 150px; background: #000; color: white; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; outline: none; font-size: 14px; }
 </style>
 </head>
 <body>
 
-<div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column; gap:10px;">
-  <h2 style="color:var(--primary);">تسجيل الدخول للمنصة</h2>
-  <input type="email" id="email" placeholder="البريد الإلكتروني" style="width:260px;">
-  <input type="password" id="password" placeholder="كلمة المرور" style="width:260px;" onkeydown="if(event.key==='Enter') login()">
-  <button id="loginBtn" class="btn btn-start" onclick="login()" style="width:260px; padding:12px;">دخول</button>
+<!-- Auth Screen -->
+<div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column;">
+ <h2 style="margin-bottom:20px; color:var(--primary);">Call-Assist Agent Login</h2>
+ <input type="email" id="email" placeholder="Email" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
+ <input type="password" id="password" placeholder="Password" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
+ <button class="btn btn-start" onclick="login()" style="width:250px; padding:12px;">Login</button>
 </div>
 
+<!-- Main App -->
 <div id="appScreen" style="display:none; height:100%; flex-direction:column;">
-  <div class="top-bar">
-    <div style="font-weight:bold; color:#38bdf8;">🤖 وكيل مركز النداء الذكي</div>
-    <div style="display:flex; gap:6px; flex-wrap:wrap;">
-      <button class="btn btn-memory" onclick="toggleModal('memoryModal')">🧠 ذاكرة الشركة</button>
-      <button class="btn btn-auto" onclick="toggleModal('leadsModal')">📋 الحرفاء والنتائج</button>
-      <button class="btn btn-end" onclick="auth.signOut()">خروج</button>
-    </div>
-  </div>
+ <div class="top-bar">
+ <div style="display:flex; align-items:center; gap:15px;">
+ <div class="timer-box" id="timerDisplay">00:00</div>
+ <div class="cost-box" id="costDisplay">0.00 $</div>
+ </div>
+ <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+ <button class="btn btn-memory" onclick="toggleMemory()">🧠 ذاكرة الشركة</button>
+ <button class="btn btn-auto" id="autoModeBtn" onclick="toggleAutoMode()">🎙️ الوضع الآلي</button>
+ <button class="btn btn-start" id="startCallBtn" onclick="startCall()">بدء المكالمة</button>
+ <button class="btn btn-end" id="endCallBtn" onclick="endCall()">إنهاء</button>
+ </div>
+ </div>
 
-  <div class="panel-box">
-    <div class="card" style="text-align:center;">
-      <div id="statusText" style="color:#fbbf24; font-weight:bold; font-size:14px;">الوكيل جاهز للعمل</div>
-      <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
-        <button class="btn btn-auto" id="btnCampaign" onclick="startCampaign()">🚀 بدء الاتصال الآلي بالحرفاء</button>
-        <button class="btn btn-start" id="btnCall" onclick="startCall(null)">📞 مكالمة حية (صوت ونص)</button>
-        <button class="btn btn-end" id="btnStop" style="display:none;" onclick="stopCall(true)">🛑 إنهاء المكالمة</button>
-      </div>
-    </div>
+ <div class="split-view">
+ <div class="side">
+ <div class="side-header">الوكيل (أنت) - <span id="agentLangLabel">AR</span></div>
+ <div class="chat-area" id="agentChat"></div>
+ </div>
+ <div class="side">
+ <div class="side-header">العميل - <span id="customerLangLabel">DE</span></div>
+ <div class="chat-area" id="customerChat"></div>
+ </div>
+ </div>
 
-    <div class="chat-area" id="chatBox"></div>
-  </div>
+ <div style="padding: 0 10px;">
+ <div id="editorContainer" class="editor-area">
+ <div style="font-size:12px; color:#94a3b8; margin-bottom:5px;">عدّل النص قبل الترجمة:</div>
+ <textarea id="textEditor"></textarea>
+ <div class="editor-actions">
+ <button class="btn btn-cancel" onclick="cancelEdit()">إلغاء</button>
+ <button class="btn btn-send" onclick="sendForTranslation()">ترجمة وإرسال</button>
+ </div>
+ </div>
+ </div>
 
-  <div class="input-row">
-    <input type="text" id="userInput" placeholder="تحدث بصوتك أو اكتب هنا كأنك الحريف..." onkeypress="if(event.key==='Enter') sendText()">
-    <button class="btn btn-start" onclick="sendText()">إرسال</button>
-  </div>
-</div>
-
-<!-- نافذة ذاكرة الشركة -->
-<div class="modal" id="memoryModal">
-  <div class="modal-content">
-    <h3>🧠 معلومات الشركة وتعليمات الوكيل</h3>
-    <input type="text" id="agentName" placeholder="اسم الوكيل (مثال: سارة)">
-    <textarea id="memoryText" style="height:150px;" placeholder="اكتب هنا منتجات الشركة، الأسعار، وطريقة الإقناع..."></textarea>
-    <div style="display:flex; justify-content:flex-end; gap:8px;">
-      <button class="btn btn-memory" onclick="toggleModal('memoryModal')">إغلاق</button>
-      <button class="btn btn-start" onclick="saveMemory()">حفظ</button>
-    </div>
-  </div>
-</div>
-
-<!-- نافذة الحرفاء والنتائج -->
-<div class="modal" id="leadsModal">
-  <div class="modal-content" style="max-height:85vh; overflow-y:auto;">
-    <h3>📋 قائمة الحرفاء للاتصال الآلي</h3>
-    <input type="text" id="leadName" placeholder="اسم الحريف">
-    <input type="tel" id="leadPhone" placeholder="رقم الهاتف (مثال: +21650000000)">
-    <button class="btn btn-start" onclick="addLead()">➕ إضافة للقائمة</button>
-    <table>
-      <thead><tr><th>الحريف</th><th>الحالة</th><th>النتيجة</th></tr></thead>
-      <tbody id="leadsTable"></tbody>
-    </table>
-    <button class="btn btn-memory" onclick="toggleModal('leadsModal')">إغلاق</button>
-  </div>
-</div>
-
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8",
-  authDomain: "chat-core-app.firebaseapp.com",
-  projectId: "chat-core-app",
-  storageBucket: "chat-core-app.firebasestorage.app",
-  messagingSenderId: "216958872856",
-  appId: "1:216958872856:web:f03d559611b327c91b426d"
-};
-
-firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
-const API_URL = "https://call-assist-ibj6.onrender.com";
-
-let agentName = "سارة";
-let companyMemory = "";
-let history = [];
-let isCallActive = false;
-let isCampaign = false;
-let currentLead = null;
-let recognition = null;
-let isSpeaking = false;
-
-function login() {
-  const email = document.getElementById('email').value.trim();
-  const pass = document.getElementById('password').value;
-  const btn = document.getElementById('loginBtn');
-  if (!email || !pass) return alert("يرجى إدخال البريد وكلمة المرور");
-
-  btn.disabled = true;
-  btn.textContent = "جاري الدخول...";
-
-  auth.signInWithEmailAndPassword(email, pass)
-    .catch(e => alert("خطأ في الدخول: " + e.message))
-    .finally(() => {
-      btn.disabled = false;
-      btn.textContent = "دخول";
-    });
-}
-
-auth.onAuthStateChanged(user => {
-  if (user) {
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'flex';
-    loadMemory();
-    listenLeads();
-    initVoice();
-  } else {
-    document.getElementById('authScreen').style.display = 'flex';
-    document.getElementById('appScreen').style.display = 'none';
-  }
-});
-
-function toggleModal(id) {
-  const m = document.getElementById(id);
-  m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
-}
-
-async function loadMemory() {
-  const doc = await db.collection('settings').doc('company_memory').get();
-  if (doc.exists) {
-    companyMemory = doc.data().content || "";
-    agentName = doc.data().agentName || "سارة";
-    document.getElementById('memoryText').value = companyMemory;
-    document.getElementById('agentName').value = agentName;
-  }
-}
-
-async function saveMemory() {
-  companyMemory = document.getElementById('memoryText').value;
-  agentName = document.getElementById('agentName').value || "سارة";
-  await db.collection('settings').doc('company_memory').set({ content: companyMemory, agentName }, { merge: true });
-  toggleModal('memoryModal');
-  alert("✅ تم حفظ معلومات الشركة");
-}
-
-async function addLead() {
-  const name = document.getElementById('leadName').value.trim();
-  const phone = document.getElementById('leadPhone').value.trim();
-  if (!name || !phone) return alert("يرجى إدخال الاسم ورقم الهاتف");
-  await db.collection('leads').add({
-    name,
-    phone,
-    status: 'pending',
-    summary: '-',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  document.getElementById('leadName').value = "";
-  document.getElementById('leadPhone').value = "";
-}
-
-function listenLeads() {
-  db.collection('leads').orderBy('createdAt', 'desc').onSnapshot(snap => {
-    const tbody = document.getElementById('leadsTable');
-    tbody.innerHTML = "";
-    snap.forEach(doc => {
-      const d = doc.data();
-      const statusText = d.status === 'completed' ? '✅ تم الاتصال' : '⏳ في الانتظار';
-      tbody.innerHTML += `<tr><td>${d.name}</td><td>${statusText}</td><td>${d.summary || '-'}</td></tr>`;
-    });
-  });
-}
-
-function addMsg(role, text) {
-  const box = document.getElementById('chatBox');
-  const div = document.createElement('div');
-  div.className = 'msg ' + (role === 'ai' ? 'msg-ai' : 'msg-user');
+ <div class="controls">
+ <div class="controls-row">
+ <div class="lang-selects">
+ <select id="agentLang" onchange="document.getElementById('agentLangLabel').innerText=this.value.toUpperCase()">
+ <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option>
+ <option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italian
