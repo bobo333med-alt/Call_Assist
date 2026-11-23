@@ -8,79 +8,56 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <style>
-:root {
-  --bg: #0f172a; --panel: rgba(30, 41, 59, 0.7); --border: rgba(255,255,255,0.1);
-  --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --text: #f8fafc;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; touch-action: manipulation; }
+:root { --bg: #0f172a; --panel: rgba(30, 41, 59, 0.8); --border: rgba(255,255,255,0.1); --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --text: #f8fafc; --coach: #f59e0b; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; touch-action: manipulation; }
 body { background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-
-/* Top Bar */
 .top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 10px; }
-.timer-box { font-size: 18px; font-weight: bold; font-variant-numeric: tabular-nums; color: #fbbf24; }
-.cost-box { font-size: 12px; color: #94a3b8; }
+.timer-box { font-size: 18px; font-weight: bold; color: #fbbf24; }
 .btn { padding: 8px 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; }
-.btn-start { background: var(--success); color: white; }
-.btn-end { background: var(--danger); color: white; display: none; }
-.btn-memory { background: #475569; color: white; }
-.btn-auto { background: #8b5cf6; color: white; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Split Screen */
+.btn-start { background: var(--success); color: white; } .btn-end { background: var(--danger); color: white; display: none; }
+.btn-memory { background: #475569; color: white; } .btn-auto { background: #8b5cf6; color: white; }
 .split-view { display: flex; flex: 1; gap: 10px; padding: 10px; overflow: hidden; flex-direction: column; }
 @media (min-width: 768px) { .split-view { flex-direction: row; } }
-.side { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; padding: 10px; overflow: hidden; }
-.side-header { text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--border); color: #94a3b8; font-size: 14px; }
+.side { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; padding: 10px; overflow: hidden; position: relative; }
+.side-header { text-align: center; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 5px; color: #94a3b8; display: flex; justify-content: center; align-items: center; gap: 10px;}
+.sentiment-badge { font-size: 20px; }
 .chat-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
+.msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; line-height: 1.4; }
 .msg-original { background: rgba(255,255,255,0.05); border-right: 3px solid #64748b; }
 .msg-translated { background: rgba(59, 130, 246, 0.1); border-right: 3px solid var(--primary); color: #93c5fd; }
-
-/* Editor (Zero-Data Loss) */
+.coach-panel { display: none; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--coach); color: #fcd34d; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 13px; animation: slideIn 0.3s ease; }
+@keyframes slideIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .editor-area { display: none; margin-top: 10px; background: #000; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
-.editor-area textarea { width: 100%; height: 60px; background: transparent; border: none; color: white; resize: none; outline: none; font-size: 14px; }
-.editor-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px; }
-.btn-send { background: var(--primary); color: white; padding: 5px 15px; font-size: 12px; }
-.btn-cancel { background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 5px 15px; font-size: 12px; }
-
-/* Bottom Controls */
-.controls { padding: 10px 15px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.editor-area textarea { width: 100%; height: 60px; background: transparent; border: none; color: white; resize: none; outline: none; }
+.controls { padding: 10px 15px; background: var(--panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
 .controls-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.lang-selects { display: flex; gap: 5px; flex: 1; }
 select { padding: 8px; border-radius: 8px; background: #000; color: white; border: 1px solid #334155; font-size: 12px; flex: 1; outline: none; }
-.mic-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: #334155; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; touch-action: none; }
+.mic-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: #334155; color: white; font-size: 24px; cursor: pointer; flex-shrink: 0; touch-action: none; }
 .mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
-@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-
-/* Text Input Row */
+@keyframes pulse { 50% { transform: scale(1.1); } }
 .input-row { display: flex; gap: 10px; width: 100%; }
-.input-row input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #334155; background: #000; color: white; outline: none; font-size: 14px; }
-.input-row button { background: var(--primary); border: none; border-radius: 50%; width: 45px; height: 45px; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-
-/* Company Memory Modal */
-.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
-.modal-content { background: var(--panel); padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid var(--border); }
-.modal-content textarea { width: 100%; height: 150px; background: #000; color: white; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; outline: none; font-size: 14px; }
+.input-row input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #334155; background: #000; color: white; outline: none; }
+.input-row button { background: var(--primary); border: none; border-radius: 50%; width: 45px; height: 45px; color: white; cursor: pointer; }
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
+.modal-content { background: var(--panel); padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; }
+textarea { width: 100%; height: 150px; background: #000; color: white; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; outline: none; }
 </style>
 </head>
 <body>
-
-<!-- Auth Screen -->
 <div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column;">
   <h2 style="margin-bottom:20px; color:var(--primary);">Call-Assist Agent Login</h2>
-  <input type="email" id="email" placeholder="Email" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
-  <input type="password" id="password" placeholder="Password" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
+  <input type="email" id="email" placeholder="Email" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px;">
+  <input type="password" id="password" placeholder="Password" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px;">
   <button class="btn btn-start" onclick="login()" style="width:250px; padding:12px;">Login</button>
 </div>
 
-<!-- Main App -->
 <div id="appScreen" style="display:none; height:100%; flex-direction:column;">
   <div class="top-bar">
     <div style="display:flex; align-items:center; gap:15px;">
       <div class="timer-box" id="timerDisplay">00:00</div>
-      <div class="cost-box" id="costDisplay">0.00 $</div>
+      <div id="costDisplay" style="font-size:12px; color:#94a3b8;">0.00 $</div>
     </div>
-    <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
+    <div style="display:flex; gap:5px; flex-wrap:wrap;">
       <button class="btn btn-memory" onclick="toggleMemory()">🧠 ذاكرة الشركة</button>
       <button class="btn btn-auto" id="autoModeBtn" onclick="toggleAutoMode()">🎙️ الوضع الآلي</button>
       <button class="btn btn-start" id="startCallBtn" onclick="startCall()">بدء المكالمة</button>
@@ -92,41 +69,39 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
     <div class="side">
       <div class="side-header">الوكيل (أنت) - <span id="agentLangLabel">AR</span></div>
       <div class="chat-area" id="agentChat"></div>
+      <div id="coachPanel" class="coach-panel">💡 <strong>توجيه:</strong> <span id="coachText"></span></div>
     </div>
     <div class="side">
-      <div class="side-header">العميل - <span id="customerLangLabel">DE</span></div>
+      <div class="side-header">
+        العميل - <span id="customerLangLabel">DE</span>
+        <span id="sentimentIndicator" class="sentiment-badge" title="حالة العميل">😐</span>
+      </div>
       <div class="chat-area" id="customerChat"></div>
     </div>
   </div>
 
   <div style="padding: 0 10px;">
       <div id="editorContainer" class="editor-area">
-        <div style="font-size:12px; color:#94a3b8; margin-bottom:5px;">عدّل النص قبل الترجمة:</div>
         <textarea id="textEditor"></textarea>
-        <div class="editor-actions">
-          <button class="btn btn-cancel" onclick="cancelEdit()">إلغاء</button>
-          <button class="btn btn-send" onclick="sendForTranslation()">ترجمة وإرسال</button>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button class="btn btn-cancel" onclick="cancelEdit()" style="background:transparent; border:1px solid #475569; color:#94a3b8;">إلغاء</button>
+          <button class="btn btn-send" onclick="sendForTranslation()" style="background:var(--primary);">ترجمة وإرسال</button>
         </div>
       </div>
   </div>
 
   <div class="controls">
     <div class="controls-row">
-      <div class="lang-selects">
-        <select id="agentLang" onchange="document.getElementById('agentLangLabel').innerText=this.value.toUpperCase()">
-          <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option>
-          <option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
-        </select>
-        <select id="customerLang" onchange="document.getElementById('customerLangLabel').innerText=this.value.toUpperCase()">
-          <option value="de">Deutsch</option><option value="ar">العربية</option><option value="en">English</option>
-          <option value="fr">Français</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
-        </select>
-      </div>
+      <select id="agentLang" onchange="document.getElementById('agentLangLabel').innerText=this.value.toUpperCase()">
+        <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
+      </select>
+      <select id="customerLang" onchange="document.getElementById('customerLangLabel').innerText=this.value.toUpperCase()">
+        <option value="de">Deutsch</option><option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
+      </select>
       <button class="mic-btn" id="pttBtn" onpointerdown="startPTT(event)" onpointerup="stopPTT(event)" onpointerleave="stopPTT(event)">🎤</button>
     </div>
-    
     <div class="input-row">
-      <input type="text" id="manualInput" placeholder="اكتب هنا للترجمة الفورية..." onkeypress="handleManualEnter(event)">
+      <input type="text" id="manualInput" placeholder="اكتب هنا للترجمة الفورية..." onkeypress="if(event.key==='Enter') sendManualText()">
       <button onclick="sendManualText()">➤</button>
     </div>
   </div>
@@ -135,95 +110,79 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 <div class="modal" id="memoryModal">
   <div class="modal-content">
     <h3 style="margin-bottom:10px;">🧠 ذاكرة الشركة</h3>
-    <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">سياسات الشركة، المنتجات، الأسعار.</p>
-    <textarea id="memoryText" placeholder="مثال: نحن شركة شحن، مدة التوصيل 3 أيام..."></textarea>
+    <textarea id="memoryText" placeholder="سياسات الشركة..."></textarea>
     <div style="display:flex; justify-content:flex-end; gap:10px;">
-      <button class="btn btn-cancel" onclick="toggleMemory()">إغلاق</button>
+      <button class="btn btn-cancel" onclick="toggleMemory()" style="background:transparent; border:1px solid #475569; color:#94a3b8;">إغلاق</button>
       <button class="btn btn-start" onclick="saveMemory()">حفظ</button>
     </div>
   </div>
 </div>
 
+<div class="modal" id="summaryModal">
+  <div class="modal-content">
+    <h3 style="margin-bottom:10px; color:var(--success);">✅ تم إنهاء المكالمة</h3>
+    <div id="summaryContent" style="background:rgba(0,0,0,0.3); padding:15px; border-radius:8px; margin-bottom:15px;"></div>
+    <button class="btn btn-start" onclick="closeSummary()" style="width:100%;">إغلاق</button>
+  </div>
+</div>
+
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8",
-  authDomain: "chat-core-app.firebaseapp.com",
-  projectId: "chat-core-app",
-  storageBucket: "chat-core-app.firebasestorage.app",
-  messagingSenderId: "216958872856",
-  appId: "1:216958872856:web:f03d559611b327c91b426d"
-};
+const firebaseConfig = { apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8", authDomain: "chat-core-app.firebaseapp.com", projectId: "chat-core-app", storageBucket: "chat-core-app.firebasestorage.app", messagingSenderId: "216958872856", appId: "1:216958872856:web:f03d559611b327c91b426d" };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const API_URL = "https://call-assist-ibj6.onrender.com"; 
 
-let currentUser = null;
-let currentCallId = null;
-let callInterval = null;
-let callStartTime = null;
-let pricePerMinute = 0.50; 
-let companyMemory = "";
-let recognition = null;
-let isRecording = false;
+let currentUser = null, currentCallId = null, callInterval = null, callStartTime = null, pricePerMinute = 0.50, companyMemory = "";
+let recognition = null, isRecording = false, isAutoMode = false, isProcessingAuto = false, autoTextBuffer = "", silenceTimer = null;
+let fullTranscript = [];
 
-// متغيرات الوضع الآلي
-let isAutoMode = false;
-let isProcessingAuto = false;
-let autoTextBuffer = "";
-let silenceTimer = null;
-
-function login() {
-  const email = document.getElementById('email').value;
-  const pass = document.getElementById('password').value;
-  auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
-}
+function login() { auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(err => alert(err.message)); }
 
 auth.onAuthStateChanged(user => {
   if (user) {
     currentUser = user;
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'flex';
-    loadCompanyMemory();
+    loadSettings();
     initSpeechRecognition();
   } else {
-    currentUser = null;
     document.getElementById('authScreen').style.display = 'flex';
     document.getElementById('appScreen').style.display = 'none';
   }
 });
 
+async function loadSettings() {
+  try {
+    const doc = await db.collection('settings').doc('company_memory').get();
+    if (doc.exists) { companyMemory = doc.data().content || ""; document.getElementById('memoryText').value = companyMemory; }
+    const pricing = await db.collection('settings').doc('pricing').get();
+    if (pricing.exists) pricePerMinute = pricing.data().pricePerMinute || 0.50;
+  } catch(e) {}
+}
+
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { alert("متصفحك لا يدعم التعرف على الصوت. استخدم Chrome."); return; }
-  
+  if (!SpeechRecognition) { alert("استخدم Chrome للتعرف على الصوت."); return; }
   recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  recognition.continuous = true; recognition.interimResults = true;
   
   recognition.onresult = (event) => {
     if (isAutoMode) {
-      let interimTranscript = '';
+      let interim = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) autoTextBuffer += event.results[i][0].transcript + ' ';
-        else interimTranscript += event.results[i][0].transcript;
+        else interim += event.results[i][0].transcript;
       }
-      document.getElementById('textEditor').value = autoTextBuffer + interimTranscript;
-      
+      document.getElementById('textEditor').value = autoTextBuffer + interim;
       clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        if (autoTextBuffer.trim().length > 0 && !isProcessingAuto) triggerAutoTranslation();
-      }, 1500);
+      silenceTimer = setTimeout(() => { if (autoTextBuffer.trim().length > 0 && !isProcessingAuto) triggerAutoTranslation(); }, 1500);
     } else {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-      }
-      if (finalTranscript) document.getElementById('textEditor').value += finalTranscript + ' ';
+      let finalT = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) { if (event.results[i].isFinal) finalT += event.results[i][0].transcript; }
+      if (finalT) document.getElementById('textEditor').value += finalT + ' ';
     }
   };
-
-  recognition.onerror = (event) => { if(!isAutoMode) stopPTT(); };
   recognition.onend = () => { if (isAutoMode && !isProcessingAuto) { try { recognition.start(); } catch(e) {} } };
 }
 
@@ -231,109 +190,107 @@ function toggleAutoMode() {
   isAutoMode = !isAutoMode;
   const btn = document.getElementById('autoModeBtn');
   if (isAutoMode) {
-    btn.style.background = "var(--danger)";
-    btn.textContent = "🛑 إيقاف الآلي";
-    document.getElementById('pttBtn').style.display = 'none';
-    startAutoRecognition();
+    btn.style.background = "var(--danger)"; btn.textContent = "🛑 إيقاف الآلي";
+    document.getElementById('pttBtn').style.display = 'none'; startAutoRecognition();
   } else {
-    btn.style.background = "#8b5cf6";
-    btn.textContent = "🎙️ الوضع الآلي";
-    document.getElementById('pttBtn').style.display = 'flex';
-    try { recognition.stop(); } catch(e) {}
+    btn.style.background = "#8b5cf6"; btn.textContent = "🎙️ الوضع الآلي";
+    document.getElementById('pttBtn').style.display = 'flex'; try { recognition.stop(); } catch(e) {}
     clearTimeout(silenceTimer);
   }
 }
 
 function startAutoRecognition() {
   if (!recognition) return;
-  const lang = document.getElementById('agentLang').value;
   const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
-  recognition.lang = langMap[lang] || 'en-US';
-  autoTextBuffer = "";
-  document.getElementById('textEditor').value = "";
+  recognition.lang = langMap[document.getElementById('agentLang').value] || 'en-US';
+  autoTextBuffer = ""; document.getElementById('textEditor').value = "";
   try { recognition.start(); } catch(e) {}
 }
 
 async function triggerAutoTranslation() {
-  isProcessingAuto = true;
-  recognition.stop(); 
-  const text = autoTextBuffer.trim();
-  autoTextBuffer = "";
-  document.getElementById('textEditor').value = "";
-  const sourceLang = document.getElementById('agentLang').value;
-  addMessage('agentChat', text, 'msg-original', sourceLang);
-  await processTranslation(text, sourceLang, true);
+  isProcessingAuto = true; recognition.stop(); 
+  const text = autoTextBuffer.trim(); autoTextBuffer = ""; document.getElementById('textEditor').value = "";
+  const src = document.getElementById('agentLang').value;
+  addMessage('agentChat', text, 'msg-original', src);
+  await processTranslation(text, src, true);
   isProcessingAuto = false;
   if (isAutoMode) setTimeout(startAutoRecognition, 500);
 }
 
-// تم إزالة شرط "بدء المكالمة" من هنا لكي يعمل المايك دائماً
 function startPTT(e) {
-  if (e) e.preventDefault(); 
-  if (isRecording || !recognition || isAutoMode) return;
-  isRecording = true;
-  document.getElementById('pttBtn').classList.add('recording');
-  document.getElementById('editorContainer').style.display = 'block';
-  document.getElementById('textEditor').value = "";
-  const lang = document.getElementById('agentLang').value;
+  if (e) e.preventDefault(); if (isRecording || !recognition || isAutoMode) return;
+  isRecording = true; document.getElementById('pttBtn').classList.add('recording');
+  document.getElementById('editorContainer').style.display = 'block'; document.getElementById('textEditor').value = "";
   const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
-  recognition.lang = langMap[lang] || 'en-US';
+  recognition.lang = langMap[document.getElementById('agentLang').value] || 'en-US';
   try { recognition.start(); } catch(e) {}
 }
 
 function stopPTT(e) {
-  if (e) e.preventDefault();
-  if (!isRecording) return;
-  isRecording = false;
-  document.getElementById('pttBtn').classList.remove('recording');
+  if (e) e.preventDefault(); if (!isRecording) return;
+  isRecording = false; document.getElementById('pttBtn').classList.remove('recording');
   try { recognition.stop(); } catch(e) {}
 }
 
-function cancelEdit() {
-  document.getElementById('editorContainer').style.display = 'none';
-  document.getElementById('textEditor').value = "";
-}
-
-function handleManualEnter(e) {
-  if (e.key === 'Enter') sendManualText();
-}
+function cancelEdit() { document.getElementById('editorContainer').style.display = 'none'; document.getElementById('textEditor').value = ""; }
 
 function sendManualText() {
-  const text = document.getElementById('manualInput').value.trim();
-  if (!text) return;
+  const text = document.getElementById('manualInput').value.trim(); if (!text) return;
   document.getElementById('manualInput').value = '';
-  const sourceLang = document.getElementById('agentLang').value;
-  addMessage('agentChat', text, 'msg-original', sourceLang);
-  processTranslation(text, sourceLang, false);
+  const src = document.getElementById('agentLang').value;
+  addMessage('agentChat', text, 'msg-original', src);
+  processTranslation(text, src, false);
 }
 
-async function sendForTranslation() {
-  const text = document.getElementById('textEditor').value.trim();
-  if (!text) return cancelEdit();
-  const sourceLang = document.getElementById('agentLang').value;
+function sendForTranslation() {
+  const text = document.getElementById('textEditor').value.trim(); if (!text) return cancelEdit();
+  const src = document.getElementById('agentLang').value;
   document.getElementById('editorContainer').style.display = 'none';
-  addMessage('agentChat', text, 'msg-original', sourceLang);
-  processTranslation(text, sourceLang, false);
+  addMessage('agentChat', text, 'msg-original', src);
+  processTranslation(text, src, false);
 }
 
 async function processTranslation(text, sourceLang, isAuto) {
   const targetLang = document.getElementById('customerLang').value;
   try {
-    const res = await fetch(`${API_URL}/ai/translate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text, source_lang: sourceLang, target_lang: targetLang,
-        company_memory: companyMemory, mode: 'translate', provider: 'auto'
-      })
+    const res = await fetch(`${API_URL}/ai/process_turn`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, source_lang: sourceLang, target_lang: targetLang, company_memory: companyMemory })
     });
     const data = await res.json();
-    if (data.translated) {
-      addMessage('customerChat', data.translated, 'msg-translated', targetLang);
-      speakText(data.translated, targetLang, isAuto);
-      if (currentCallId) logTurnToFirestore(text, data.translated, sourceLang, targetLang);
+    
+    // 1. عرض الترجمة
+    addMessage('customerChat', data.translation, 'msg-translated', targetLang);
+    // 2. نطق الترجمة
+    speakText(data.translation, targetLang, isAuto);
+    // 3. تحديث المشاعر
+    updateSentiment(data.sentiment);
+    // 4. عرض بطاقة التوجيه (Live Coach)
+    showCoachTip(data.coach_tip);
+    
+    // تسجيل في Firebase
+    fullTranscript.push(`Agent: ${text}\nCustomer: ${data.translation}`);
+    if (currentCallId) {
+      db.collection('calls').doc(currentCallId).collection('turns').add({
+        original: text, translated: data.translation, sourceLang, targetLang, sentiment: data.sentiment, timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
     }
-  } catch (e) { console.error(e); }
+  } catch (e) { console.error("Translation Error", e); }
+}
+
+function updateSentiment(sentiment) {
+  const el = document.getElementById('sentimentIndicator');
+  if (sentiment === 'angry') el.innerText = '😡';
+  else if (sentiment === 'happy') el.innerText = '😊';
+  else el.innerText = '😐';
+}
+
+function showCoachTip(tip) {
+  if (!tip || tip === "Server Error") return;
+  const panel = document.getElementById('coachPanel');
+  document.getElementById('coachText').innerText = tip;
+  panel.style.display = 'block';
+  setTimeout(() => { panel.style.display = 'none'; }, 8000); // تختفي بعد 8 ثواني
 }
 
 function speakText(text, langCode, isAuto) {
@@ -341,72 +298,66 @@ function speakText(text, langCode, isAuto) {
   const utterance = new SpeechSynthesisUtterance(text);
   const ttsMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
   utterance.lang = ttsMap[langCode] || 'en-US';
-  if (isAuto) {
-    utterance.onend = () => { setTimeout(() => { if(isAutoMode && !isProcessingAuto) startAutoRecognition(); }, 1000); };
-  }
+  if (isAuto) { utterance.onend = () => { setTimeout(() => { if(isAutoMode && !isProcessingAuto) startAutoRecognition(); }, 1000); }; }
   speechSynthesis.speak(utterance);
 }
 
 function addMessage(containerId, text, className, lang) {
   const container = document.getElementById(containerId);
   const div = document.createElement('div');
-  div.className = `msg ${className}`;
-  div.setAttribute('dir', 'auto');
+  div.className = `msg ${className}`; div.setAttribute('dir', 'auto');
   div.innerHTML = `<span style="font-size:10px; opacity:0.5; display:block; margin-bottom:3px;">${lang.toUpperCase()}</span>${text}`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
+  container.appendChild(div); container.scrollTop = container.scrollHeight;
 }
 
 function startCall() {
-  document.getElementById('startCallBtn').style.display = 'none';
-  document.getElementById('endCallBtn').style.display = 'block';
-  currentCallId = db.collection('calls').doc().id;
-  callStartTime = Date.now();
-  db.collection('calls').doc(currentCallId).set({ agentId: currentUser.uid, startAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'active' }).catch(e => console.log(e));
+  document.getElementById('startCallBtn').style.display = 'none'; document.getElementById('endCallBtn').style.display = 'block';
+  currentCallId = db.collection('calls').doc().id; callStartTime = Date.now(); fullTranscript = [];
+  db.collection('calls').doc(currentCallId).set({ agentId: currentUser.uid, startAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'active' });
   callInterval = setInterval(() => {
     const diff = Date.now() - callStartTime;
-    const mins = Math.floor(diff / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    document.getElementById('timerDisplay').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    document.getElementById('timerDisplay').textContent = `${String(Math.floor(diff/60000)).padStart(2,'0')}:${String(Math.floor((diff%60000)/1000)).padStart(2,'0')}`;
     document.getElementById('costDisplay').textContent = `${((diff / 60000) * pricePerMinute).toFixed(2)} $`;
   }, 1000);
 }
 
 async function endCall() {
-  if (callInterval) clearInterval(callInterval);
-  if (isRecording) stopPTT();
-  if (isAutoMode) toggleAutoMode();
-  document.getElementById('startCallBtn').style.display = 'block';
-  document.getElementById('endCallBtn').style.display = 'none';
-  if (currentCallId) {
-    const durationSec = Math.floor((Date.now() - callStartTime) / 1000);
-    try {
-      await db.collection('calls').doc(currentCallId).update({ endAt: firebase.firestore.FieldValue.serverTimestamp(), durationSec, totalCost: (durationSec / 60) * pricePerMinute, status: 'completed' });
-    } catch(e) {}
-  }
-  document.getElementById('timerDisplay').textContent = "00:00";
-  document.getElementById('costDisplay').textContent = "0.00 $";
-  currentCallId = null;
-}
+  if (callInterval) clearInterval(callInterval); if (isAutoMode) toggleAutoMode();
+  document.getElementById('startCallBtn').style.display = 'block'; document.getElementById('endCallBtn').style.display = 'none';
+  const durationSec = Math.floor((Date.now() - callStartTime) / 1000);
+  
+  document.getElementById('summaryContent').innerHTML = "جاري إنشاء الملخص بالذكاء الاصطناعي...";
+  document.getElementById('summaryModal').style.display = 'flex';
 
-function logTurnToFirestore(original, translated, srcLang, destLang) {
-  if (!currentCallId) return;
-  db.collection('calls').doc(currentCallId).collection('turns').add({ original, translated, sourceLang: srcLang, targetLang: destLang, timestamp: firebase.firestore.FieldValue.serverTimestamp() }).catch(e => console.log(e));
-}
-
-function toggleMemory() {
-  const modal = document.getElementById('memoryModal');
-  modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
-}
-async function loadCompanyMemory() {
   try {
-    const doc = await db.collection('settings').doc('company_memory').get();
-    if (doc.exists) { companyMemory = doc.data().content || ""; document.getElementById('memoryText').value = companyMemory; }
-  } catch(e) {}
+    const res = await fetch(`${API_URL}/ai/summary`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript: fullTranscript.join('\n'), company_memory: companyMemory })
+    });
+    const summary = await res.json();
+    
+    document.getElementById('summaryContent').innerHTML = `
+      <p><strong>الملخص:</strong> ${summary.summary}</p>
+      <p style="margin-top:10px;"><strong>الإجراءات:</strong></p>
+      <ul>${summary.action_items.map(i => `<li>${i}</li>`).join('')}</ul>
+      <p style="margin-top:10px;"><strong>حالة الحل:</strong> ${summary.resolution}</p>
+    `;
+
+    if (currentCallId) {
+      await db.collection('calls').doc(currentCallId).update({
+        endAt: firebase.firestore.FieldValue.serverTimestamp(), durationSec, totalCost: (durationSec / 60) * pricePerMinute, status: 'completed', aiSummary: summary
+      });
+    }
+  } catch(e) { document.getElementById('summaryContent').innerText = "فشل إنشاء الملخص."; }
+
+  document.getElementById('timerDisplay').textContent = "00:00"; document.getElementById('costDisplay').textContent = "0.00 $"; currentCallId = null;
 }
+
+function closeSummary() { document.getElementById('summaryModal').style.display = 'none'; }
+function toggleMemory() { const m = document.getElementById('memoryModal'); m.style.display = m.style.display === 'flex' ? 'none' : 'flex'; }
 async function saveMemory() {
   const text = document.getElementById('memoryText').value;
-  try { await db.collection('settings').doc('company_memory').set({ content: text }); companyMemory = text; toggleMemory(); alert("تم الحفظ."); } catch(e) { alert("خطأ: " + e.message); }
+  await db.collection('settings').doc('company_memory').set({ content: text }); companyMemory = text; toggleMemory(); alert("تم الحفظ.");
 }
 </script>
 </body>
