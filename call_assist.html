@@ -3,144 +3,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Call-Assist | Agent App</title>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<title>Call-Assist | AI Call Center</title>
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<script src="https://jsdelivr.net"></script>
 <style>
 :root {
-  --bg: #0f172a; --panel: rgba(30, 41, 59, 0.7); --border: rgba(255,255,255,0.1);
-  --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --text: #f8fafc;
+  --bg: #0f172a; --panel: rgba(30, 41, 59, 0.85); --border: rgba(255,255,255,0.1);
+  --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --purple: #8b5cf6; --text: #f8fafc;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; touch-action: manipulation; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
 body { background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-
-/* Top Bar */
-.top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 10px; }
-.timer-box { font-size: 18px; font-weight: bold; font-variant-numeric: tabular-nums; color: #fbbf24; }
-.cost-box { font-size: 12px; color: #94a3b8; }
-.btn { padding: 8px 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; }
-.btn-start { background: var(--success); color: white; }
-.btn-end { background: var(--danger); color: white; display: none; }
-.btn-memory { background: #475569; color: white; }
-.btn-auto { background: #8b5cf6; color: white; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Split Screen */
-.split-view { display: flex; flex: 1; gap: 10px; padding: 10px; overflow: hidden; flex-direction: column; }
-@media (min-width: 768px) { .split-view { flex-direction: row; } }
-.side { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; padding: 10px; overflow: hidden; }
-.side-header { text-align: center; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid var(--border); color: #94a3b8; font-size: 14px; }
-.chat-area { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
-.msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; line-height: 1.4; word-wrap: break-word; }
-.msg-original { background: rgba(255,255,255,0.05); border-right: 3px solid #64748b; }
-.msg-translated { background: rgba(59, 130, 246, 0.1); border-right: 3px solid var(--primary); color: #93c5fd; }
-
-/* Editor (Zero-Data Loss) */
-.editor-area { display: none; margin-top: 10px; background: #000; padding: 10px; border-radius: 8px; border: 1px solid #334155; }
-.editor-area textarea { width: 100%; height: 60px; background: transparent; border: none; color: white; resize: none; outline: none; font-size: 14px; }
-.editor-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 5px; }
-.btn-send { background: var(--primary); color: white; padding: 5px 15px; font-size: 12px; }
-.btn-cancel { background: transparent; color: #94a3b8; border: 1px solid #475569; padding: 5px 15px; font-size: 12px; }
-
-/* Bottom Controls */
-.controls { padding: 10px 15px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-.controls-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.lang-selects { display: flex; gap: 5px; flex: 1; }
-select { padding: 8px; border-radius: 8px; background: #000; color: white; border: 1px solid #334155; font-size: 12px; flex: 1; outline: none; }
-.mic-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: #334155; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; touch-action: none; }
-.mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
-@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-
-/* Text Input Row */
-.input-row { display: flex; gap: 10px; width: 100%; }
-.input-row input { flex: 1; padding: 12px; border-radius: 20px; border: 1px solid #334155; background: #000; color: white; outline: none; font-size: 14px; }
-.input-row button { background: var(--primary); border: none; border-radius: 50%; width: 45px; height: 45px; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-
-/* Company Memory Modal */
-.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
-.modal-content { background: var(--panel); padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid var(--border); }
-.modal-content textarea { width: 100%; height: 150px; background: #000; color: white; border: 1px solid #334155; border-radius: 8px; padding: 10px; margin-bottom: 10px; resize: none; outline: none; font-size: 14px; }
+.top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 8px; }
+.btn { padding: 8px 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; color: white; }
+.btn-start { background: var(--success); }
+.btn-end { background: var(--danger); }
+.btn-memory { background: #475569; }
+.btn-auto { background: var(--purple); }
+.panel-box { flex: 1; display: flex; flex-direction: column; padding: 12px; gap: 10px; overflow-y: auto; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+input, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #090d16; color: white; font-size: 14px; outline: none; }
+.chat-area { flex: 1; min-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; }
+.msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; max-width: 85%; }
+.msg-ai { align-self: flex-start; background: rgba(59, 130, 246, 0.2); border-right: 3px solid var(--primary); }
+.msg-user { align-self: flex-end; background: rgba(255,255,255,0.08); border-left: 3px solid #94a3b8; }
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
+.modal-content { background: #1e293b; padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border); }
 </style>
 </head>
 <body>
 
-<!-- Auth Screen -->
-<div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column;">
-  <h2 style="margin-bottom:20px; color:var(--primary);">Call-Assist Agent Login</h2>
-  <input type="email" id="email" placeholder="Email" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
-  <input type="password" id="password" placeholder="Password" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
-  <button class="btn btn-start" onclick="login()" style="width:250px; padding:12px;">Login</button>
+<div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column; gap:10px;">
+  <h2 style="color:var(--primary);">تسجيل الدخول للمنصة</h2>
+  <input type="email" id="email" placeholder="Email" style="width:260px;">
+  <input type="password" id="password" placeholder="Password" style="width:260px;">
+  <button class="btn btn-start" onclick="login()" style="width:260px; padding:12px;">دخول</button>
 </div>
 
-<!-- Main App -->
 <div id="appScreen" style="display:none; height:100%; flex-direction:column;">
   <div class="top-bar">
-    <div style="display:flex; align-items:center; gap:15px;">
-      <div class="timer-box" id="timerDisplay">00:00</div>
-      <div class="cost-box" id="costDisplay">0.00 $</div>
-    </div>
-    <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
-      <button class="btn btn-memory" onclick="toggleMemory()">🧠 ذاكرة الشركة</button>
-      <button class="btn btn-auto" id="autoModeBtn" onclick="toggleAutoMode()">🎙️ الوضع الآلي</button>
-      <button class="btn btn-start" id="startCallBtn" onclick="startCall()">بدء المكالمة</button>
-      <button class="btn btn-end" id="endCallBtn" onclick="endCall()">إنهاء</button>
+    <div style="font-weight:bold; color:#38bdf8;">🤖 وكيل مركز النداء الذكي</div>
+    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+      <button class="btn btn-memory" onclick="toggleModal('memoryModal')">🧠 ذاكرة الشركة</button>
+      <button class="btn btn-auto" onclick="toggleModal('leadsModal')">📋 الحرفاء والنتائج</button>
+      <button class="btn" style="background:#334155;" onclick="toggleModal('keysModal')">🔑 مفاتيح Vapi</button>
     </div>
   </div>
 
-  <div class="split-view">
-    <div class="side">
-      <div class="side-header">الوكيل (أنت) - <span id="agentLangLabel">AR</span></div>
-      <div class="chat-area" id="agentChat"></div>
-    </div>
-    <div class="side">
-      <div class="side-header">العميل - <span id="customerLangLabel">DE</span></div>
-      <div class="chat-area" id="customerChat"></div>
-    </div>
-  </div>
-
-  <div style="padding: 0 10px;">
-      <div id="editorContainer" class="editor-area">
-        <div style="font-size:12px; color:#94a3b8; margin-bottom:5px;">عدّل النص قبل الترجمة:</div>
-        <textarea id="textEditor"></textarea>
-        <div class="editor-actions">
-          <button class="btn btn-cancel" onclick="cancelEdit()">إلغاء</button>
-          <button class="btn btn-send" onclick="sendForTranslation()">ترجمة وإرسال</button>
-        </div>
+  <div class="panel-box">
+    <div class="card" style="text-align:center;">
+      <div id="statusText" style="color:#fbbf24; font-weight:bold; font-size:14px;">الوكيل جاهز للعمل</div>
+      <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+        <button class="btn btn-auto" id="btnCampaign" onclick="startCampaign()">🚀 بدء الاتصال الآلي بالحرفاء</button>
+        <button class="btn btn-start" id="btnCall" onclick="startCall(null)">📞 مكالمة صوتية حية</button>
+        <button class="btn btn-end" id="btnStop" style="display:none;" onclick="stopCall(true)">🛑 إنهاء المكالمة</button>
       </div>
-  </div>
-
-  <div class="controls">
-    <div class="controls-row">
-      <div class="lang-selects">
-        <select id="agentLang" onchange="document.getElementById('agentLangLabel').innerText=this.value.toUpperCase()">
-          <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option>
-          <option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
-        </select>
-        <select id="customerLang" onchange="document.getElementById('customerLangLabel').innerText=this.value.toUpperCase()">
-          <option value="de">Deutsch</option><option value="ar">العربية</option><option value="en">English</option>
-          <option value="fr">Français</option><option value="es">Español</option><option value="it">Italiano</option><option value="nl">Nederlands</option>
-        </select>
-      </div>
-      <button class="mic-btn" id="pttBtn" onpointerdown="startPTT(event)" onpointerup="stopPTT(event)" onpointerleave="stopPTT(event)">🎤</button>
     </div>
-    
-    <!-- شريط الكتابة يعمل دائماً حتى لو لم تبدأ المكالمة -->
-    <div class="input-row">
-      <input type="text" id="manualInput" placeholder="اكتب هنا للترجمة الفورية..." onkeypress="handleManualEnter(event)">
-      <button onclick="sendManualText()">➤</button>
+
+    <div class="chat-area" id="chatBox"></div>
+  </div>
+</div>
+
+<!-- نافذة ذاكرة الشركة -->
+<div class="modal" id="memoryModal">
+  <div class="modal-content">
+    <h3>🧠 معلومات الشركة وتعليمات الوكيل</h3>
+    <input type="text" id="agentName" placeholder="اسم الوكيل (مثال: سارة)">
+    <textarea id="memoryText" style="height:150px;" placeholder="اكتب هنا منتجات الشركة، الأسعار، وطريقة الإقناع..."></textarea>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn btn-memory" onclick="toggleModal('memoryModal')">إغلاق</button>
+      <button class="btn btn-start" onclick="saveMemory()">حفظ</button>
     </div>
   </div>
 </div>
 
-<div class="modal" id="memoryModal">
+<!-- نافذة الحرفاء والنتائج -->
+<div class="modal" id="leadsModal">
+  <div class="modal-content" style="max-height:85vh; overflow-y:auto;">
+    <h3>📋 قائمة الحرفاء للاتصال الآلي</h3>
+    <input type="text" id="leadName" placeholder="اسم الحريف">
+    <input type="tel" id="leadPhone" placeholder="رقم الهاتف">
+    <button class="btn btn-start" onclick="addLead()">➕ إضافة للقائمة</button>
+    <table>
+      <thead><tr><th>الحريف</th><th>الحالة</th><th>النتيجة</th></tr></thead>
+      <tbody id="leadsTable"></tbody>
+    </table>
+    <button class="btn btn-memory" onclick="toggleModal('leadsModal')">إغلاق</button>
+  </div>
+</div>
+
+<!-- نافذة مفاتيح Vapi -->
+<div class="modal" id="keysModal">
   <div class="modal-content">
-    <h3 style="margin-bottom:10px;">🧠 ذاكرة الشركة</h3>
-    <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">سياسات الشركة، المنتجات، الأسعار.</p>
-    <textarea id="memoryText" placeholder="مثال: نحن شركة شحن، مدة التوصيل 3 أيام..."></textarea>
-    <div style="display:flex; justify-content:flex-end; gap:10px;">
-      <button class="btn btn-cancel" onclick="toggleMemory()">إغلاق</button>
-      <button class="btn btn-start" onclick="saveMemory()">حفظ</button>
+    <h3>🔑 إعدادات الربط الصوتي (Vapi)</h3>
+    <input type="text" id="vapiPub" placeholder="Vapi Public Key">
+    <input type="text" id="vapiAsst" placeholder="Assistant ID">
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button class="btn btn-memory" onclick="toggleModal('keysModal')">إغلاق</button>
+      <button class="btn btn-start" onclick="saveKeys()">حفظ</button>
     </div>
   </div>
 </div>
@@ -148,7 +111,7 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8",
-  authDomain: "chat-core-app.firebaseapp.com",
+  authDomain: "://firebaseapp.com",
   projectId: "chat-core-app",
   storageBucket: "chat-core-app.firebasestorage.app",
   messagingSenderId: "216958872856",
@@ -157,258 +120,88 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const API_URL = "https://call-assist-ibj6.onrender.com"; 
+const API_URL = "https://onrender.com";
 
-let currentUser = null;
-let currentCallId = null;
-let callInterval = null;
-let callStartTime = null;
-let pricePerMinute = 0.50; 
+let vapiInstance = null;
+let agentName = "سارة";
 let companyMemory = "";
-let recognition = null;
-let isRecording = false;
+let transcript = [];
+let isCampaign = false;
+let currentLead = null;
 
-// متغيرات الوضع الآلي
-let isAutoMode = false;
-let isProcessingAuto = false;
-let autoTextBuffer = "";
-let silenceTimer = null;
+document.getElementById('vapiPub').value = localStorage.getItem('vapi_pub') || '';
+document.getElementById('vapiAsst').value = localStorage.getItem('vapi_asst') || '';
 
 function login() {
-  const email = document.getElementById('email').value;
-  const pass = document.getElementById('password').value;
-  auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
+  auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(e => alert(e.message));
 }
 
 auth.onAuthStateChanged(user => {
   if (user) {
-    currentUser = user;
     document.getElementById('authScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'flex';
-    loadCompanyMemory();
-    initSpeechRecognition();
-  } else {
-    currentUser = null;
-    document.getElementById('authScreen').style.display = 'flex';
-    document.getElementById('appScreen').style.display = 'none';
+    loadMemory();
+    listenLeads();
   }
 });
 
-function initSpeechRecognition() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) { alert("متصفحك لا يدعم التعرف على الصوت. استخدم Chrome."); return; }
-  
-  recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  
-  recognition.onresult = (event) => {
-    if (isAutoMode) {
-      let interimTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) autoTextBuffer += event.results[i][0].transcript + ' ';
-        else interimTranscript += event.results[i][0].transcript;
-      }
-      document.getElementById('textEditor').value = autoTextBuffer + interimTranscript;
-      
-      clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => {
-        if (autoTextBuffer.trim().length > 0 && !isProcessingAuto) triggerAutoTranslation();
-      }, 1500);
-    } else {
-      let finalTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-      }
-      if (finalTranscript) document.getElementById('textEditor').value += finalTranscript + ' ';
-    }
-  };
-
-  recognition.onerror = (event) => { if(!isAutoMode) stopPTT(); };
-  recognition.onend = () => { if (isAutoMode && !isProcessingAuto) { try { recognition.start(); } catch(e) {} } };
+function toggleModal(id) {
+  const m = document.getElementById(id);
+  m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
 }
 
-function toggleAutoMode() {
-  isAutoMode = !isAutoMode;
-  const btn = document.getElementById('autoModeBtn');
-  if (isAutoMode) {
-    btn.style.background = "var(--danger)";
-    btn.textContent = "🛑 إيقاف الآلي";
-    document.getElementById('pttBtn').style.display = 'none';
-    startAutoRecognition();
-  } else {
-    btn.style.background = "#8b5cf6";
-    btn.textContent = "🎙️ الوضع الآلي";
-    document.getElementById('pttBtn').style.display = 'flex';
-    try { recognition.stop(); } catch(e) {}
-    clearTimeout(silenceTimer);
+function saveKeys() {
+  localStorage.setItem('vapi_pub', document.getElementById('vapiPub').value.trim());
+  localStorage.setItem('vapi_asst', document.getElementById('vapiAsst').value.trim());
+  toggleModal('keysModal');
+  alert("تم حفظ المفاتيح");
+}
+
+async function loadMemory() {
+  const doc = await db.collection('settings').doc('company_memory').get();
+  if (doc.exists) {
+    companyMemory = doc.data().content || "";
+    agentName = doc.data().agentName || "سارة";
+    document.getElementById('memoryText').value = companyMemory;
+    document.getElementById('agentName').value = agentName;
   }
 }
 
-function startAutoRecognition() {
-  if (!recognition) return;
-  const lang = document.getElementById('agentLang').value;
-  const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
-  recognition.lang = langMap[lang] || 'en-US';
-  autoTextBuffer = "";
-  document.getElementById('textEditor').value = "";
-  try { recognition.start(); } catch(e) {}
-}
-
-async function triggerAutoTranslation() {
-  isProcessingAuto = true;
-  recognition.stop(); 
-  const text = autoTextBuffer.trim();
-  autoTextBuffer = "";
-  document.getElementById('textEditor').value = "";
-  const sourceLang = document.getElementById('agentLang').value;
-  addMessage('agentChat', text, 'msg-original', sourceLang);
-  await processTranslation(text, sourceLang, true);
-  isProcessingAuto = false;
-  if (isAutoMode) setTimeout(startAutoRecognition, 500);
-}
-
-function startPTT(e) {
-  if (e) e.preventDefault(); 
-  if (isRecording || !recognition || isAutoMode) return;
-  isRecording = true;
-  document.getElementById('pttBtn').classList.add('recording');
-  document.getElementById('editorContainer').style.display = 'block';
-  document.getElementById('textEditor').value = "";
-  const lang = document.getElementById('agentLang').value;
-  const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
-  recognition.lang = langMap[lang] || 'en-US';
-  try { recognition.start(); } catch(e) {}
-}
-
-function stopPTT(e) {
-  if (e) e.preventDefault();
-  if (!isRecording) return;
-  isRecording = false;
-  document.getElementById('pttBtn').classList.remove('recording');
-  try { recognition.stop(); } catch(e) {}
-}
-
-function cancelEdit() {
-  document.getElementById('editorContainer').style.display = 'none';
-  document.getElementById('textEditor').value = "";
-}
-
-function handleManualEnter(e) {
-  if (e.key === 'Enter') sendManualText();
-}
-
-// دالة الإرسال النصي - تعمل بدون الحاجة لبدء المكالمة
-function sendManualText() {
-  const text = document.getElementById('manualInput').value.trim();
-  if (!text) return;
-  document.getElementById('manualInput').value = '';
-  const sourceLang = document.getElementById('agentLang').value;
-  addMessage('agentChat', text, 'msg-original', sourceLang);
-  processTranslation(text, sourceLang, false);
-}
-
-async function sendForTranslation() {
-  const text = document.getElementById('textEditor').value.trim();
-  if (!text) return cancelEdit();
-  const sourceLang = document.getElementById('agentLang').value;
-  document.getElementById('editorContainer').style.display = 'none';
-  addMessage('agentChat', text, 'msg-original', sourceLang);
-  processTranslation(text, sourceLang, false);
-}
-
-async function processTranslation(text, sourceLang, isAuto) {
-  const targetLang = document.getElementById('customerLang').value;
-  try {
-    const res = await fetch(`${API_URL}/ai/translate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text, source_lang: sourceLang, target_lang: targetLang,
-        company_memory: companyMemory, mode: 'translate', provider: 'auto'
-      })
-    });
-    const data = await res.json();
-    if (data.translated) {
-      addMessage('customerChat', data.translated, 'msg-translated', targetLang);
-      speakText(data.translated, targetLang, isAuto);
-      if (currentCallId) logTurnToFirestore(text, data.translated, sourceLang, targetLang);
-    }
-  } catch (e) { console.error(e); }
-}
-
-function speakText(text, langCode, isAuto) {
-  if (!window.speechSynthesis) return;
-  const utterance = new SpeechSynthesisUtterance(text);
-  const ttsMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
-  utterance.lang = ttsMap[langCode] || 'en-US';
-  if (isAuto) {
-    utterance.onend = () => { setTimeout(() => { if(isAutoMode && !isProcessingAuto) startAutoRecognition(); }, 1000); };
-  }
-  speechSynthesis.speak(utterance);
-}
-
-function addMessage(containerId, text, className, lang) {
-  const container = document.getElementById(containerId);
-  const div = document.createElement('div');
-  div.className = `msg ${className}`;
-  div.setAttribute('dir', 'auto');
-  div.innerHTML = `<span style="font-size:10px; opacity:0.5; display:block; margin-bottom:3px;">${lang.toUpperCase()}</span>${text}`;
-  container.appendChild(div);
-  container.scrollTop = container.scrollHeight;
-}
-
-function startCall() {
-  document.getElementById('startCallBtn').style.display = 'none';
-  document.getElementById('endCallBtn').style.display = 'block';
-  currentCallId = db.collection('calls').doc().id;
-  callStartTime = Date.now();
-  db.collection('calls').doc(currentCallId).set({ agentId: currentUser.uid, startAt: firebase.firestore.FieldValue.serverTimestamp(), status: 'active' }).catch(e => console.log(e));
-  callInterval = setInterval(() => {
-    const diff = Date.now() - callStartTime;
-    const mins = Math.floor(diff / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    document.getElementById('timerDisplay').textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    document.getElementById('costDisplay').textContent = `${((diff / 60000) * pricePerMinute).toFixed(2)} $`;
-  }, 1000);
-}
-
-async function endCall() {
-  if (callInterval) clearInterval(callInterval);
-  if (isRecording) stopPTT();
-  if (isAutoMode) toggleAutoMode();
-  document.getElementById('startCallBtn').style.display = 'block';
-  document.getElementById('endCallBtn').style.display = 'none';
-  if (currentCallId) {
-    const durationSec = Math.floor((Date.now() - callStartTime) / 1000);
-    try {
-      await db.collection('calls').doc(currentCallId).update({ endAt: firebase.firestore.FieldValue.serverTimestamp(), durationSec, totalCost: (durationSec / 60) * pricePerMinute, status: 'completed' });
-    } catch(e) {}
-  }
-  document.getElementById('timerDisplay').textContent = "00:00";
-  document.getElementById('costDisplay').textContent = "0.00 $";
-  currentCallId = null;
-}
-
-function logTurnToFirestore(original, translated, srcLang, destLang) {
-  if (!currentCallId) return;
-  db.collection('calls').doc(currentCallId).collection('turns').add({ original, translated, sourceLang: srcLang, targetLang: destLang, timestamp: firebase.firestore.FieldValue.serverTimestamp() }).catch(e => console.log(e));
-}
-
-function toggleMemory() {
-  const modal = document.getElementById('memoryModal');
-  modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
-}
-async function loadCompanyMemory() {
-  try {
-    const doc = await db.collection('settings').doc('company_memory').get();
-    if (doc.exists) { companyMemory = doc.data().content || ""; document.getElementById('memoryText').value = companyMemory; }
-  } catch(e) {}
-}
 async function saveMemory() {
-  const text = document.getElementById('memoryText').value;
-  try { await db.collection('settings').doc('company_memory').set({ content: text }); companyMemory = text; toggleMemory(); alert("تم الحفظ."); } catch(e) { alert("خطأ: " + e.message); }
+  companyMemory = document.getElementById('memoryText').value;
+  agentName = document.getElementById('agentName').value || "سارة";
+  await db.collection('settings').doc('company_memory').set({ content: companyMemory, agentName }, { merge: true });
+  toggleModal('memoryModal');
+  alert("تم حفظ معلومات الشركة");
 }
-</script>
-</body>
-</html>
+
+async function addLead() {
+  const name = document.getElementById('leadName').value.trim();
+  const phone = document.getElementById('leadPhone').value.trim();
+  if (!name || !phone) return;
+  await db.collection('leads').add({ name, phone, status: 'pending', summary: '-', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+  document.getElementById('leadName').value = '';
+  document.getElementById('leadPhone').value = '';
+}
+
+function listenLeads() {
+  db.collection('leads').orderBy('createdAt', 'desc').onSnapshot(snap => {
+    const tb = document.getElementById('leadsTable');
+    tb.innerHTML = '';
+    snap.forEach(doc => {
+      const d = doc.data();
+      tb.innerHTML += `<tr><td>${d.name}</td><td>${d.status === 'completed' ? '✅ تم' : '⏳ انتظار'}</td><td>${d.summary}</td></tr>`;
+    });
+  });
+}
+
+async function startCampaign() {
+  isCampaign = true;
+  const snap = await db.collection('leads').where('status', '==', 'pending').limit(1).get();
+  if (snap.empty) { isCampaign = false; return alert("لا يوجد حرفاء في الانتظار"); }
+  currentLead = { id: snap.docs.id, ...snap.docs.data() };
+  startCall(currentLead);
+}
+
+async function startCall(lead) {
+  const pub = localStorage.getItem('vapi_pub');
