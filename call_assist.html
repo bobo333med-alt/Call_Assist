@@ -4,9 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Call-Assist | AI Call Center</title>
+
+<!-- روابط مكتبات Firebase الصحيحة -->
 <script src="https://gstatic.com"></script>
 <script src="https://gstatic.com"></script>
 <script src="https://gstatic.com"></script>
+
 <style>
 :root {
   --bg: #0f172a; --panel: #1e293b; --border: rgba(255,255,255,0.1);
@@ -15,7 +18,9 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
 body { background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 .top-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 10px 15px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 8px; }
-.btn { padding: 8px 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; color: white; }
+.btn { padding: 8px 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 13px; color: white; transition: 0.2s; }
+.btn:hover { opacity: 0.9; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-start { background: var(--success); }
 .btn-end { background: var(--danger); }
 .btn-memory { background: #475569; }
@@ -39,8 +44,8 @@ th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border)
 <div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column; gap:10px;">
   <h2 style="color:var(--primary);">تسجيل الدخول للمنصة</h2>
   <input type="email" id="email" placeholder="البريد الإلكتروني" style="width:260px;">
-  <input type="password" id="password" placeholder="كلمة المرور" style="width:260px;">
-  <button class="btn btn-start" onclick="login()" style="width:260px; padding:12px;">دخول</button>
+  <input type="password" id="password" placeholder="كلمة المرور" style="width:260px;" onkeydown="if(event.key==='Enter') login()">
+  <button id="loginBtn" class="btn btn-start" onclick="login()" style="width:260px; padding:12px;">دخول</button>
 </div>
 
 <div id="appScreen" style="display:none; height:100%; flex-direction:column;">
@@ -49,6 +54,7 @@ th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border)
     <div style="display:flex; gap:6px; flex-wrap:wrap;">
       <button class="btn btn-memory" onclick="toggleModal('memoryModal')">🧠 ذاكرة الشركة</button>
       <button class="btn btn-auto" onclick="toggleModal('leadsModal')">📋 الحرفاء والنتائج</button>
+      <button class="btn btn-end" onclick="auth.signOut()">خروج</button>
     </div>
   </div>
 
@@ -89,7 +95,7 @@ th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border)
   <div class="modal-content" style="max-height:85vh; overflow-y:auto;">
     <h3>📋 قائمة الحرفاء للاتصال الآلي</h3>
     <input type="text" id="leadName" placeholder="اسم الحريف">
-    <input type="tel" id="leadPhone" placeholder="رقم الهاتف">
+    <input type="tel" id="leadPhone" placeholder="رقم الهاتف (مثال: +21650000000)">
     <button class="btn btn-start" onclick="addLead()">➕ إضافة للقائمة</button>
     <table>
       <thead><tr><th>الحريف</th><th>الحالة</th><th>النتيجة</th></tr></thead>
@@ -102,12 +108,13 @@ th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border)
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8",
-  authDomain: "://firebaseapp.com",
+  authDomain: "chat-core-app.firebaseapp.com",
   projectId: "chat-core-app",
   storageBucket: "chat-core-app.firebasestorage.app",
   messagingSenderId: "216958872856",
   appId: "1:216958872856:web:f03d559611b327c91b426d"
 };
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
@@ -123,7 +130,20 @@ let recognition = null;
 let isSpeaking = false;
 
 function login() {
-  auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(e => alert(e.message));
+  const email = document.getElementById('email').value.trim();
+  const pass = document.getElementById('password').value;
+  const btn = document.getElementById('loginBtn');
+  if (!email || !pass) return alert("يرجى إدخال البريد وكلمة المرور");
+
+  btn.disabled = true;
+  btn.textContent = "جاري الدخول...";
+
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(e => alert("خطأ في الدخول: " + e.message))
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = "دخول";
+    });
 }
 
 auth.onAuthStateChanged(user => {
@@ -133,6 +153,9 @@ auth.onAuthStateChanged(user => {
     loadMemory();
     listenLeads();
     initVoice();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
   }
 });
 
@@ -162,49 +185,31 @@ async function saveMemory() {
 async function addLead() {
   const name = document.getElementById('leadName').value.trim();
   const phone = document.getElementById('leadPhone').value.trim();
-  if (!name || !phone) return;
-  await db.collection('leads').add({ name, phone, status: 'pending', summary: '-', createdAt: firebase.firestore.FieldValue.serverTimestamp() });
-  document.getElementById('leadName').value = '';
-  document.getElementById('leadPhone').value = '';
+  if (!name || !phone) return alert("يرجى إدخال الاسم ورقم الهاتف");
+  await db.collection('leads').add({
+    name,
+    phone,
+    status: 'pending',
+    summary: '-',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+  document.getElementById('leadName').value = "";
+  document.getElementById('leadPhone').value = "";
 }
 
 function listenLeads() {
   db.collection('leads').orderBy('createdAt', 'desc').onSnapshot(snap => {
-    const tb = document.getElementById('leadsTable');
-    tb.innerHTML = '';
+    const tbody = document.getElementById('leadsTable');
+    tbody.innerHTML = "";
     snap.forEach(doc => {
       const d = doc.data();
-      tb.innerHTML += `<tr><td>${d.name}</td><td>${d.status === 'completed' ? '✅ تم' : '⏳ انتظار'}</td><td>${d.summary}</td></tr>`;
+      const statusText = d.status === 'completed' ? '✅ تم الاتصال' : '⏳ في الانتظار';
+      tbody.innerHTML += `<tr><td>${d.name}</td><td>${statusText}</td><td>${d.summary || '-'}</td></tr>`;
     });
   });
 }
 
-function initVoice() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
-  recognition = new SR();
-  recognition.lang = 'ar-TN';
-  recognition.continuous = false;
-  recognition.onresult = async (e) => {
-    const txt = e.results.transcript.trim();
-    if (txt && isCallActive) await processCustomerMessage(txt);
-  };
-  recognition.onend = () => {
-    if (isCallActive && !isSpeaking) { try { recognition.start(); } catch(e) {} }
-  };
-}
-
-async function startCampaign() {
-  isCampaign = true;
-  const snap = await db.collection('leads').where('status', '==', 'pending').limit(1).get();
-  if (snap.empty) { isCampaign = false; return alert("لا يوجد حرفاء في الانتظار"); }
-  currentLead = { id: snap.docs.id, ...snap.docs.data() };
-  startCall(currentLead);
-}
-
-async function startCall(lead) {
-  await loadMemory();
-  history = [];
-  isCallActive = true;
-  document.getElementById('chatBox').innerHTML = '';
-  document.getElementById('btnCampaign').style.display = 'none';
+function addMsg(role, text) {
+  const box = document.getElementById('chatBox');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'ai' ? 'msg-ai' : 'msg-user');
