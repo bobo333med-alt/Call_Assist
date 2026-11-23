@@ -1,13 +1,89 @@
-import os
-import time
-from typing import List, Optional
-from fastapi import FastAPI, HTTPException, Request
+import os, asyncio, logging
+from typing import Literal
+import httpx
+
+logger = logging.getLogger("ai_router")
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+OR_URL   = "https://openrouter.ai/api/v1/chat/completions"
+TIMEOUT, MAX_RETRIES = 40, 2
+
+def _env(k: str, d: str = "") -> str:
+    return os.getenv(k, d).strip()
+
+async def _post(url: str, headers: dict, payload: dict) -> dict:
+    async with httpx.AsyncClient(timeout=TIMEOUT) as c:
+        last = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                r = await c.post(url, headers=headers, json=payload)
+                if r.status_code in (429, 500, 502, 503, 504):
+                    last = f"{r.status_code}: {r.text[:200]}"
+                    await asyncio.sleep(1.0 * (2 ** attempt))
+                    continue
+                r.raise_for_status()
+                return r.json()
+            except httpx.HTTPError as e:
+                last = str(e)
+                await asyncio.sleep(1.0 * (2 ** attempt))
+        raise RuntimeError(f"AI HTTP failed: {last}")
+
+async def _groq(messages, model=None, **kw):
+    key = _env("GROQ_API_KEY")
+    if not key: raise RuntimeError("GROQ_API_KEY missing")
+    data = await _post(GROQ_URL, {"Authorization": f"Bearer {key}"}, {
+        # استخدام النموذج الأقوى في الترجمة
+        "model": model or _env("GROQ_MODEL", "llama-3.3-70b-versatile"),
+        "messages": messages,
+        "temperature": kw.get("temperature", 0.1),
+        "max_tokens": kw.get("max_tokens", 800),
+    })
+    data["_provider"] = "groq"
+    return data
+
+async def _openrouter(messages, model=None, **kw):
+    key = _env("OPENROUTER_API_KEY")
+    if not key: raise RuntimeError("OPENROUTER_API_KEY missing")
+    data = await _post(OR_URL, {
+        "Authorization": f"Bearer {key}",
+        "HTTP-Referer": _env("APP_REFERER", "https://call-assist.app"),
+        "X-Title": "Call-Assist",
+    }, {
+        # Qwen ممتاز جداً في الترجمة والالتزام باللغة
+        "model": model or _env("OPENROUTER_MODEL", "qwen/qwen-2.5-72b-instruct"),
+        "messages": messages,
+        "temperature": kw.get("temperature", 0.1),
+        "max_tokens": kw.get("max_tokens", 800),
+    })
+    data["_provider"] = "openrouter"
+    return data
+
+async def call_ai(messages, provider: Literal["auto","groq","openrouter"] = None, **kw):
+    provider = (provider or _env("AI_PROVIDER", "auto")).lower()
+    if provider == "groq": return await _groq(messages, **kw)
+    if provider == "openrouter": return await _openrouter(messages, **kw)
+    try:
+        return await _groq(messages, **kw)
+    except Exception as e:
+        logger.warning(f"Groq failed ({e}) → Trying OpenRouter")
+        return await _openrouter(messages, **kw)
+
+def extract_text(resp):
+    try: return (resp["choices"][0]["message"]["content"] or "").strip()
+    except: return ""
+
+def extract_usage(resp):
+    u = resp.get("usage") or {}
+    return {"prompt_tokens": int(u.get("prompt_tokens",0)),
+            "completion_tokens": int(u.get("completion_tokens",0)),
+            "total_tokens": int(u.get("total_tokens",0))}
+    import os
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from ai_router import call_ai, extract_text, extract_usage, get_client
+from ai_router import call_ai, extract_text, extract_usage
 
-app = FastAPI(title="AI Autonomous Call Center & Translator")
+app = FastAPI(title="Call-Assist API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,14 +93,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    client = get_client()
-    if not client.is_closed:
-        await client.aclose()
-
-# --- نماذج البيانات ---
-
 class AIRequest(BaseModel):
     text: str
     source_lang: str = "auto"
@@ -33,158 +101,47 @@ class AIRequest(BaseModel):
     mode: str = "translate"
     provider: str = "auto"
 
-class ChatTurn(BaseModel):
-    role: str
-    content: str
-
-class AgentChatRequest(BaseModel):
-    history: List[ChatTurn]
-    agent_name: str = "سارة"
-    agent_lang: str = "ar-TN"
-    company_memory: str = ""
-    customer_name: Optional[str] = ""
-    customer_note: Optional[str] = ""
-    provider: str = "auto"
-
-class SummarizeRequest(BaseModel):
-    history: List[ChatTurn]
-    provider: str = "auto"
-
-# --- مسارات الصفحات (الرابط الأساسي يفتح التطبيق مباشرة) ---
-
 @app.get("/")
+def read_root():
+    return {"status": "Call-Assist Backend is Running"}
+
 @app.get("/call_assist.html")
-def open_app_directly():
+def get_call_assist():
     return FileResponse("call_assist.html")
 
 @app.get("/admin.html")
 def get_admin():
     return FileResponse("admin.html")
 
-@app.get("/agent_call.html")
-def get_agent_call():
-    return FileResponse("agent_call.html")
-
-@app.get("/health")
-def health_check():
-    return {"status": "online", "engine": "Ultra-Fast AI Call Center"}
-
-# --- مسار الوكيل الصوتي للهاتف الحقيقي (Vapi Custom LLM Endpoint) ---
-
-@app.post("/vapi/chat/completions")
-async def vapi_custom_llm(request: Request):
-    body = await request.json()
-    messages = body.get("messages", [])
-    
-    resp = await call_ai(
-        messages,
-        provider="auto",
-        temperature=0.25,
-        max_tokens=200,
-    )
-    reply_text = extract_text(resp)
-
-    return {
-        "id": "call-turn-1",
-        "object": "chat.completion",
-        "created": int(time.time()),
-        "model": "ai-call-center-agent",
-        "choices": [
-            {
-                "index": 0,
-                "message": {
-                    "role": "assistant",
-                    "content": reply_text
-                },
-                "finish_reason": "stop"
-            }
-        ]
-    }
-
-# --- مسار الوكيل للمتصفح ---
-
-@app.post("/ai/agent-chat")
-async def ai_agent_chat(req: AgentChatRequest):
-    lang_rules = {
-        "ar-TN": "تحدث بالدارجة التونسية المهذبة والواضحة والمفهومة جداً (مثل: عسلامة، مرحبا بيك، يعيشك، تفضل، شنوة نجم نعاونك).",
-        "ar": "تحدث باللغة العربية الفصحى المبسطة والودودة.",
-        "fr": "Parle uniquement en français professionnel, chaleureux et naturel.",
-        "en": "Speak strictly in natural, warm, and professional English."
-    }
-    selected_lang = lang_rules.get(req.agent_lang, lang_rules["ar-TN"])
-
-    customer_info = ""
-    if req.customer_name:
-        customer_info += f"\n- اسم الحريف: {req.customer_name}"
-    if req.customer_note:
-        customer_info += f"\n- ملاحظة عن الحريف: {req.customer_note}"
-
-    sys_prompt = f"""أنت وكيل مركز نداء ذكي (AI Call Center Agent) محترف جداً واسمك '{req.agent_name}'.
-مهمتك هي الرد على الحرفاء أو الاتصال بهم وإقناعهم وخدمتهم بدقة بناءً على ذاكرة الشركة فقط.
-
-=== ذاكرة ومعلومات الشركة ===
-{req.company_memory if req.company_memory.strip() else "لا توجد معطيات محددة حالياً. رحب بالحريف واسأله بلطف كيف يمكنك مساعدته."}
-=== نهاية الذاكرة ===
-{customer_info}
-
-قواعد صارمة:
-1. اللهجة واللغة: {selected_lang}
-2. اجعل ردك قصيراً ومركّزاً (جملة أو جملتين فقط) ليكون الحوار سريعاً وطبيعياً كالبشر.
-3. لا تستخدم أبداً رموز مثل (* أو # أو - أو إيموجي).
-4. إذا سألك الحريف عن شيء غير موجود في ذاكرة الشركة، لا تؤلف أبداً! قل له أنك ستسجل طلبه ليتصل به المختص.
-5. إذا انتهت المكالمة وودعك الحريف، أضف [END_CALL] في نهاية ردك."""
-
-    messages = [{"role": "system", "content": sys_prompt}]
-    for turn in req.history:
-        messages.append({"role": turn.role, "content": turn.content})
-
-    if not req.history:
-        messages.append({
-            "role": "user",
-            "content": "الحريف رد على الهاتف الآن وقال: ألو؟ (ابدأ المكالمة بالترحيب والتعريف بنفسك وبسبب الاتصال باختصار)."
-        })
-
-    try:
-        start_time = time.perf_counter()
-        resp = await call_ai(messages, provider=req.provider, temperature=0.25, max_tokens=250)
-        elapsed_sec = time.perf_counter() - start_time
-        usage = extract_usage(resp)
-        tps = round(usage["completion_tokens"] / elapsed_sec, 1) if elapsed_sec > 0 else 0
-
-        raw_reply = extract_text(resp)
-        should_end = "[END_CALL]" in raw_reply
-        clean_reply = raw_reply.replace("[END_CALL]", "").strip()
-
-        return {
-            "reply": clean_reply,
-            "end_call": should_end,
-            "provider": resp.get("_provider"),
-            "latency_ms": round(elapsed_sec * 1000),
-            "speed_tokens_per_sec": tps,
-            "usage": usage,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/ai/summarize-call")
-async def ai_summarize_call(req: SummarizeRequest):
-    if not req.history:
-        return {"summary": "لم يتم التحدث في المكالمة"}
-    convo = "\n".join([f"{'الحريف' if t.role=='user' else 'الوكيل'}: {t.content}" for t in req.history])
-    sys_prompt = "لخص نتيجة هذه المكالمة في جملة واحدة قصيرة وواضحة بالعربية لصاحب مركز النداء:\n\n" + convo
-    try:
-        resp = await call_ai([{"role": "system", "content": sys_prompt}], provider=req.provider, temperature=0.1, max_tokens=80)
-        return {"summary": extract_text(resp)}
-    except Exception as e:
-        return {"summary": "تعذر التلخيص: " + str(e)}
-
 @app.post("/ai/translate")
 async def ai_translate(req: AIRequest):
-    sys_prompt = f"""You are an elite, ultra-fast live call translator.
-Company context: {req.company_memory if req.company_memory.strip() else "General professional support."}
-Translate/formulate from '{req.source_lang}' strictly into '{req.target_lang}'. Output ONLY the final text."""
-    try:
-        resp = await call_ai([{"role": "system", "content": sys_prompt}, {"role": "user", "content": req.text}], provider=req.provider, temperature=0.1, max_tokens=400)
-        return {"translated": extract_text(resp), "provider": resp.get("_provider"), "usage": extract_usage(resp)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    # برومبت صارم يمنع الهلوسة ويجبر النموذج على استخدام اللغة المطلوبة فقط
+    sys_prompt = f"""You are an elite, highly empathetic customer support agent for a professional company. 
+Your goal is to assist the customer based on the following company policies and knowledge base:
+--- COMPANY MEMORY ---
+{req.company_memory if req.company_memory.strip() else "No specific company rules provided. Be professional and helpful."}
+--- END ---
+
+CRITICAL LANGUAGE RULES:
+1. The customer speaks {req.source_lang}.
+2. You MUST reply strictly and ONLY in the language code '{req.target_lang}'. 
+3. Do NOT use English, French, or any other language unless the target language code is exactly that language.
+4. If the target language is 'de', your entire response must be in German. If it is 'es', it must be Spanish.
+
+Your task:
+Formulate a natural, professional, and emotionally intelligent reply in {req.target_lang}, addressing the customer's message. Ensure it sounds human and respects the company memory.
+
+Customer's message: {req.text}
+Your reply (in {req.target_lang} only):"""
+
+    resp = await call_ai(
+        [{"role":"system","content":sys_prompt},
+         {"role":"user","content":req.text}],
+        provider=req.provider, temperature=0.1, max_tokens=800,
+    )
+    
+    return {
+        "translated": extract_text(resp),
+        "provider": resp.get("_provider"),
+        "usage": extract_usage(resp),
+    }
