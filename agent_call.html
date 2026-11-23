@@ -3,10 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>الوكيل الصوتي المستقل | AI Autonomous Agent</title>
+<title>الوكيل الصوتي المستقل | AI Call Center</title>
 <script src="https://gstatic.com"></script>
 <script src="https://gstatic.com"></script>
 <script src="https://gstatic.com"></script>
+<script src="https://jsdelivr.net"></script>
 <style>
 :root {
   --bg: #090d16; --panel: #131b2e; --border: rgba(255,255,255,0.08);
@@ -14,45 +15,25 @@
 }
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
 body { background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-
-/* Header & Speed Telemetry */
-.header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); gap: 10px; }
-.telemetry { display: flex; gap: 12px; font-size: 12px; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); }
-.telemetry span b { color: #38bdf8; }
-
-/* Main Layout */
-.main { flex: 1; display: flex; flex-direction: column; max-width: 900px; width: 100%; margin: 0 auto; padding: 15px; gap: 15px; overflow: hidden; }
-
-/* Agent Visualizer Card */
-.agent-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; position: relative; }
-.avatar { width: 75px; height: 75px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--purple)); display: flex; align-items: center; justify-content: center; font-size: 32px; box-shadow: 0 0 25px rgba(59, 130, 246, 0.4); transition: 0.3s; }
-.avatar.speaking { animation: pulse-speak 1s infinite; box-shadow: 0 0 35px rgba(16, 185, 129, 0.8); background: var(--success); }
-.avatar.listening { animation: pulse-listen 1.2s infinite; box-shadow: 0 0 35px rgba(239, 68, 68, 0.8); background: var(--danger); }
-@keyframes pulse-speak { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-@keyframes pulse-listen { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-
-.status-pill { font-size: 13px; padding: 4px 14px; border-radius: 20px; background: rgba(255,255,255,0.06); color: #94a3b8; }
-.customer-banner { font-size: 14px; color: #fbbf24; font-weight: bold; }
-
-/* Controls */
+.header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border); }
+.main { flex: 1; display: flex; flex-direction: column; max-width: 850px; width: 100%; margin: 0 auto; padding: 15px; gap: 15px; overflow: hidden; }
+.agent-card { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+.avatar { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--purple)); display: flex; align-items: center; justify-content: center; font-size: 36px; box-shadow: 0 0 25px rgba(59, 130, 246, 0.4); transition: 0.3s; }
+.avatar.active { animation: pulse 1.2s infinite; box-shadow: 0 0 40px rgba(16, 185, 129, 0.9); background: var(--success); }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.status-pill { font-size: 13px; padding: 5px 15px; border-radius: 20px; background: rgba(255,255,255,0.06); color: #94a3b8; }
+.customer-banner { font-size: 15px; color: #fbbf24; font-weight: bold; }
 .action-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-.btn { padding: 10px 18px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; color: white; display: flex; align-items: center; gap: 6px; transition: 0.2s; }
+.btn { padding: 12px 20px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 14px; color: white; display: flex; align-items: center; gap: 8px; }
 .btn-campaign { background: var(--purple); }
 .btn-inbound { background: var(--success); }
 .btn-hangup { background: var(--danger); display: none; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-/* Live Transcript */
 .chat-box { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 .bubble { max-width: 80%; padding: 10px 15px; border-radius: 14px; font-size: 14px; line-height: 1.5; }
-.bubble-ai { align-self: flex-start; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #e0f2fe; border-bottom-right-radius: 4px; }
-.bubble-user { align-self: flex-end; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #f8fafc; border-bottom-left-radius: 4px; }
-.bubble-meta { font-size: 10px; opacity: 0.6; margin-bottom: 4px; display: block; }
-
-/* Text Fallback Input */
-.input-bar { display: flex; gap: 10px; }
-.input-bar input { flex: 1; padding: 12px 16px; border-radius: 12px; border: 1px solid #334155; background: var(--panel); color: white; outline: none; font-size: 14px; }
-.input-bar button { padding: 0 20px; border-radius: 12px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer; }
+.bubble-ai { align-self: flex-start; background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #e0f2fe; }
+.bubble-user { align-self: flex-end; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #f8fafc; }
+.setup-bar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; width: 100%; }
+.setup-bar input { padding: 8px 12px; border-radius: 8px; border: 1px solid #334155; background: #090d16; color: white; font-size: 12px; flex: 1; min-width: 180px; }
 </style>
 </head>
 <body>
@@ -66,16 +47,17 @@ body { background: var(--bg); color: var(--text); height: 100dvh; display: flex;
 
 <div class="header">
   <div style="font-weight:bold; font-size:16px;">🤖 AI Call Center Agent</div>
-  <div class="telemetry">
-    <span>السرعة: <b id="tpsDisplay">0</b> tok/s</span>
-    <span>الزمن: <b id="latencyDisplay">0</b> ms</span>
-    <span>المحرك: <b id="providerDisplay">-</b></span>
-  </div>
   <a href="admin.html" style="color:#93c5fd; font-size:13px; text-decoration:none;">⚙️ لوحة المدير</a>
 </div>
 
 <div class="main">
   <div class="agent-card">
+    <div class="setup-bar">
+      <input type="text" id="vapiPublicKey" placeholder="ضع Vapi Public Key هنا (يحفظ تلقائياً)">
+      <input type="text" id="vapiAssistantId" placeholder="ضع Assistant ID هنا (يحفظ تلقائياً)">
+      <button class="btn" style="background:#334155; padding:8px 12px;" onclick="saveVapiKeys()">💾 حفظ</button>
+    </div>
+
     <div class="avatar" id="agentAvatar">🤖</div>
     <div style="font-weight:bold; font-size:18px;" id="agentTitle">الوكيل الذكي جاهز</div>
     <div class="status-pill" id="statusText">في انتظار بدء الحملة أو استقبال مكالمة</div>
@@ -83,17 +65,12 @@ body { background: var(--bg); color: var(--text); height: 100dvh; display: flex;
 
     <div class="action-bar">
       <button class="btn btn-campaign" id="btnCampaign" onclick="startOutboundCampaign()">🚀 بدء حملة الاتصال الآلي بالحرفاء</button>
-      <button class="btn btn-inbound" id="btnInbound" onclick="startInboundCall()">📞 محاكاة مكالمة واردة من حريف</button>
-      <button class="btn btn-hangup" id="btnHangup" onclick="endCurrentCall(true)">🛑 إنهاء المكالمة وحفظ الملخص</button>
+      <button class="btn btn-inbound" id="btnInbound" onclick="startVoiceCall(null)">📞 مكالمة صوتية حية (حريف وارد)</button>
+      <button class="btn btn-hangup" id="btnHangup" onclick="stopVoiceCall(true)">🛑 إنهاء المكالمة وحفظ الملخص</button>
     </div>
   </div>
 
   <div class="chat-box" id="chatBox"></div>
-
-  <div class="input-bar">
-    <input type="text" id="userTextInput" placeholder="تحدث بصوتك أو اكتب هنا كأنك الحريف للاختبار..." onkeypress="if(event.key==='Enter') handleUserText()">
-    <button onclick="handleUserText()">إرسال</button>
-  </div>
 </div>
 
 <script>
@@ -110,13 +87,21 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const API_URL = "https://onrender.com";
 
-let agentSettings = { agentName: "سارة", agentLang: "ar-TN", content: "" };
-let conversationHistory = [];
-let isCallActive = false;
+let vapiInstance = null;
+let agentSettings = { agentName: "سارة", content: "" };
+let transcriptHistory = [];
 let isCampaignRunning = false;
 let currentLead = null;
-let recognition = null;
-let isSpeaking = false;
+
+// استرجاع مفاتيح Vapi المحفوظة
+document.getElementById('vapiPublicKey').value = localStorage.getItem('vapi_pub_key') || '';
+document.getElementById('vapiAssistantId').value = localStorage.getItem('vapi_asst_id') || '';
+
+function saveVapiKeys() {
+  localStorage.setItem('vapi_pub_key', document.getElementById('vapiPublicKey').value.trim());
+  localStorage.setItem('vapi_asst_id', document.getElementById('vapiAssistantId').value.trim());
+  alert("✅ تم حفظ مفاتيح Vapi");
+}
 
 function login() {
   auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value)
@@ -127,7 +112,8 @@ auth.onAuthStateChanged(async user => {
   if (user) {
     document.getElementById('authOverlay').style.display = 'none';
     await loadAgentMemory();
-    setupSpeechRecognition();
+    // إيقاظ سيرفر Render تلقائياً في الخلفية
+    fetch(`${API_URL}/health`).catch(() => {});
   }
 });
 
@@ -136,71 +122,66 @@ async function loadAgentMemory() {
   if (doc.exists) {
     const d = doc.data();
     agentSettings.agentName = d.agentName || "سارة";
-    agentSettings.agentLang = d.agentLang || "ar-TN";
     agentSettings.content = d.content || "";
     document.getElementById('agentTitle').innerText = `الوكيل: ${agentSettings.agentName}`;
   }
 }
 
-function setupSpeechRecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
-  recognition = new SR();
-  recognition.continuous = false;
-  recognition.interimResults = false;
-
-  recognition.onstart = () => {
-    if (!isSpeaking && isCallActive) {
-      setVisualState('listening', '🎙️ الوكيل يستمع لكلام الحريف الآن...');
-    }
-  };
-
-  recognition.onresult = async (event) => {
-    const transcript = event.results[0][0].transcript.trim();
-    if (transcript && isCallActive) {
-      await processCustomerTurn(transcript);
-    }
-  };
-
-  recognition.onend = () => {
-    if (isCallActive && !isSpeaking) {
-      try { recognition.start(); } catch(e) {}
-    }
-  };
-}
-
-function startListening() {
-  if (!recognition || !isCallActive || isSpeaking) return;
-  const langMap = { 'ar-TN': 'ar-TN', 'ar': 'ar-SA', 'fr': 'fr-FR', 'en': 'en-US' };
-  recognition.lang = langMap[agentSettings.agentLang] || 'ar-TN';
-  try { recognition.start(); } catch(e) {}
-}
-
-function stopListening() {
-  if (recognition) { try { recognition.stop(); } catch(e) {} }
-}
-
-// 1. وضع الحملة الصادرة الآلية (يتصل بالحرفاء من قاعدة البيانات واحداً تلو الآخر)
 async function startOutboundCampaign() {
-  await loadAgentMemory();
   isCampaignRunning = true;
   await callNextPendingLead();
 }
 
 async function callNextPendingLead() {
   if (!isCampaignRunning) return;
-  setVisualState('idle', '🔍 جاري البحث عن الحريف التالي في القائمة...');
+  document.getElementById('statusText').innerText = '🔍 جاري جلب الحريف التالي من قاعدة البيانات...';
   
   const snap = await db.collection('leads').where('status', '==', 'pending').limit(1).get();
   if (snap.empty) {
     isCampaignRunning = false;
-    setVisualState('idle', '✅ اكتملت الحملة! تم الاتصال بجميع الحرفاء في القائمة.');
+    document.getElementById('statusText').innerText = '✅ اكتملت الحملة! تم الاتصال بجميع الحرفاء.';
     document.getElementById('currentLeadInfo').innerText = '';
-    toggleCallButtons(false);
     return;
   }
 
   const doc = snap.docs[0];
   currentLead = { id: doc.id, ...doc.data() };
-  document.getElementById('currentLeadInfo').innerText = `📲 جاري الاتصال بـ: ${currentLead.name} (${currentLead.phone})`;
-  
+  document.getElementById('currentLeadInfo').innerText = `📲 متصل بالحريف: ${currentLead.name} (${currentLead.phone})`;
+  await startVoiceCall(currentLead);
+}
+
+async function startVoiceCall(lead) {
+  const pubKey = document.getElementById('vapiPublicKey').value.trim();
+  const asstId = document.getElementById('vapiAssistantId').value.trim();
+  if (!pubKey || !asstId) return alert("يرجى إدخال Vapi Public Key و Assistant ID أولاً");
+
+  await loadAgentMemory();
+  transcriptHistory = [];
+  document.getElementById('chatBox').innerHTML = '';
+  document.getElementById('btnCampaign').style.display = 'none';
+  document.getElementById('btnInbound').style.display = 'none';
+  document.getElementById('btnHangup').style.display = 'flex';
+  document.getElementById('statusText').innerText = '⏳ جاري الاتصال الصوتي بالوكيل...';
+
+  if (!vapiInstance) {
+    vapiInstance = window.vapiSDK.run({ apiKey: pubKey, assistant: asstId, config: { hideButton: true } });
+    
+    vapiInstance.on('call-start', () => {
+      document.getElementById('agentAvatar').classList.add('active');
+      document.getElementById('statusText').innerText = '🎙️ المكالمة جارية الآن - تحدث مع الوكيل...';
+    });
+
+    vapiInstance.on('message', (msg) => {
+      if (msg.type === 'transcript' && msg.transcriptType === 'final') {
+        const sender = msg.role === 'assistant' ? 'ai' : 'user';
+        appendBubble(sender, msg.transcript);
+        transcriptHistory.push({ role: msg.role, content: msg.transcript });
+      }
+    });
+
+    vapiInstance.on('call-end', () => {
+      handleCallFinished(false);
+    });
+  }
+
+  // تمرير معلومات الشركة والحريف من لوحة المدير تلقائياً إلى الوكيل
