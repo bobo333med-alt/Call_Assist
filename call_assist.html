@@ -7,10 +7,9 @@
 <script src="https://gstatic.com"></script>
 <script src="https://gstatic.com"></script>
 <script src="https://gstatic.com"></script>
-<script src="https://jsdelivr.net"></script>
 <style>
 :root {
-  --bg: #0f172a; --panel: rgba(30, 41, 59, 0.85); --border: rgba(255,255,255,0.1);
+  --bg: #0f172a; --panel: #1e293b; --border: rgba(255,255,255,0.1);
   --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --purple: #8b5cf6; --text: #f8fafc;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
@@ -25,9 +24,10 @@ body { background: var(--bg); color: var(--text); height: 100dvh; display: flex;
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 15px; display: flex; flex-direction: column; gap: 10px; }
 input, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #090d16; color: white; font-size: 14px; outline: none; }
 .chat-area { flex: 1; min-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; }
-.msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; max-width: 85%; }
+.msg { padding: 8px 12px; border-radius: 8px; font-size: 14px; max-width: 85%; line-height: 1.5; }
 .msg-ai { align-self: flex-start; background: rgba(59, 130, 246, 0.2); border-right: 3px solid var(--primary); }
 .msg-user { align-self: flex-end; background: rgba(255,255,255,0.08); border-left: 3px solid #94a3b8; }
+.input-row { display: flex; gap: 8px; padding: 10px; background: var(--panel); border-top: 1px solid var(--border); }
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
 .modal-content { background: #1e293b; padding: 20px; border-radius: 12px; width: 100%; max-width: 500px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
@@ -38,8 +38,8 @@ th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border)
 
 <div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column; gap:10px;">
   <h2 style="color:var(--primary);">تسجيل الدخول للمنصة</h2>
-  <input type="email" id="email" placeholder="Email" style="width:260px;">
-  <input type="password" id="password" placeholder="Password" style="width:260px;">
+  <input type="email" id="email" placeholder="البريد الإلكتروني" style="width:260px;">
+  <input type="password" id="password" placeholder="كلمة المرور" style="width:260px;">
   <button class="btn btn-start" onclick="login()" style="width:260px; padding:12px;">دخول</button>
 </div>
 
@@ -49,7 +49,6 @@ th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border)
     <div style="display:flex; gap:6px; flex-wrap:wrap;">
       <button class="btn btn-memory" onclick="toggleModal('memoryModal')">🧠 ذاكرة الشركة</button>
       <button class="btn btn-auto" onclick="toggleModal('leadsModal')">📋 الحرفاء والنتائج</button>
-      <button class="btn" style="background:#334155;" onclick="toggleModal('keysModal')">🔑 مفاتيح Vapi</button>
     </div>
   </div>
 
@@ -58,12 +57,17 @@ th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border)
       <div id="statusText" style="color:#fbbf24; font-weight:bold; font-size:14px;">الوكيل جاهز للعمل</div>
       <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
         <button class="btn btn-auto" id="btnCampaign" onclick="startCampaign()">🚀 بدء الاتصال الآلي بالحرفاء</button>
-        <button class="btn btn-start" id="btnCall" onclick="startCall(null)">📞 مكالمة صوتية حية</button>
+        <button class="btn btn-start" id="btnCall" onclick="startCall(null)">📞 مكالمة حية (صوت ونص)</button>
         <button class="btn btn-end" id="btnStop" style="display:none;" onclick="stopCall(true)">🛑 إنهاء المكالمة</button>
       </div>
     </div>
 
     <div class="chat-area" id="chatBox"></div>
+  </div>
+
+  <div class="input-row">
+    <input type="text" id="userInput" placeholder="تحدث بصوتك أو اكتب هنا كأنك الحريف..." onkeypress="if(event.key==='Enter') sendText()">
+    <button class="btn btn-start" onclick="sendText()">إرسال</button>
   </div>
 </div>
 
@@ -95,19 +99,6 @@ th, td { padding: 8px; text-align: right; border-bottom: 1px solid var(--border)
   </div>
 </div>
 
-<!-- نافذة مفاتيح Vapi -->
-<div class="modal" id="keysModal">
-  <div class="modal-content">
-    <h3>🔑 إعدادات الربط الصوتي (Vapi)</h3>
-    <input type="text" id="vapiPub" placeholder="Vapi Public Key">
-    <input type="text" id="vapiAsst" placeholder="Assistant ID">
-    <div style="display:flex; justify-content:flex-end; gap:8px;">
-      <button class="btn btn-memory" onclick="toggleModal('keysModal')">إغلاق</button>
-      <button class="btn btn-start" onclick="saveKeys()">حفظ</button>
-    </div>
-  </div>
-</div>
-
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8",
@@ -120,17 +111,16 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const API_URL = "https://onrender.com";
+const API_URL = "https://call-assist-ibj6.onrender.com";
 
-let vapiInstance = null;
 let agentName = "سارة";
 let companyMemory = "";
-let transcript = [];
+let history = [];
+let isCallActive = false;
 let isCampaign = false;
 let currentLead = null;
-
-document.getElementById('vapiPub').value = localStorage.getItem('vapi_pub') || '';
-document.getElementById('vapiAsst').value = localStorage.getItem('vapi_asst') || '';
+let recognition = null;
+let isSpeaking = false;
 
 function login() {
   auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value).catch(e => alert(e.message));
@@ -142,19 +132,13 @@ auth.onAuthStateChanged(user => {
     document.getElementById('appScreen').style.display = 'flex';
     loadMemory();
     listenLeads();
+    initVoice();
   }
 });
 
 function toggleModal(id) {
   const m = document.getElementById(id);
   m.style.display = m.style.display === 'flex' ? 'none' : 'flex';
-}
-
-function saveKeys() {
-  localStorage.setItem('vapi_pub', document.getElementById('vapiPub').value.trim());
-  localStorage.setItem('vapi_asst', document.getElementById('vapiAsst').value.trim());
-  toggleModal('keysModal');
-  alert("تم حفظ المفاتيح");
 }
 
 async function loadMemory() {
@@ -172,7 +156,7 @@ async function saveMemory() {
   agentName = document.getElementById('agentName').value || "سارة";
   await db.collection('settings').doc('company_memory').set({ content: companyMemory, agentName }, { merge: true });
   toggleModal('memoryModal');
-  alert("تم حفظ معلومات الشركة");
+  alert("✅ تم حفظ معلومات الشركة");
 }
 
 async function addLead() {
@@ -195,6 +179,21 @@ function listenLeads() {
   });
 }
 
+function initVoice() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  recognition = new SR();
+  recognition.lang = 'ar-TN';
+  recognition.continuous = false;
+  recognition.onresult = async (e) => {
+    const txt = e.results.transcript.trim();
+    if (txt && isCallActive) await processCustomerMessage(txt);
+  };
+  recognition.onend = () => {
+    if (isCallActive && !isSpeaking) { try { recognition.start(); } catch(e) {} }
+  };
+}
+
 async function startCampaign() {
   isCampaign = true;
   const snap = await db.collection('leads').where('status', '==', 'pending').limit(1).get();
@@ -204,4 +203,8 @@ async function startCampaign() {
 }
 
 async function startCall(lead) {
-  const pub = localStorage.getItem('vapi_pub');
+  await loadMemory();
+  history = [];
+  isCallActive = true;
+  document.getElementById('chatBox').innerHTML = '';
+  document.getElementById('btnCampaign').style.display = 'none';
