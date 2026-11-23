@@ -9,8 +9,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 <style>
 :root {
- --bg: #0f172a; --panel: rgba(30, 41, 59, 0.7); --border: rgba(255,255,255,0.1);
- --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --text: #f8fafc;
+  --bg: #0f172a; --panel: rgba(30, 41, 59, 0.7); --border: rgba(255,255,255,0.1);
+  --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --text: #f8fafc;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; touch-action: manipulation; }
 body { background: var(--bg); color: var(--text); height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
@@ -23,7 +23,6 @@ body { background: var(--bg); color: var(--text); height: 100dvh; display: flex;
 .btn-start { background: var(--success); color: white; }
 .btn-end { background: var(--danger); color: white; display: none; }
 .btn-memory { background: #475569; color: white; }
-.btn-auto { background: #8b5cf6; color: white; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Split Screen */
@@ -51,6 +50,7 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 .mic-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: #334155; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); flex-shrink: 0; touch-action: none; }
 .mic-btn.recording { background: var(--danger); animation: pulse 1s infinite; }
 @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+.mic-btn:disabled { background: #1e293b; color: #475569; cursor: not-allowed; }
 
 /* Text Input Row */
 .input-row { display: flex; gap: 10px; width: 100%; }
@@ -67,52 +67,382 @@ select { padding: 8px; border-radius: 8px; background: #000; color: white; borde
 
 <!-- Auth Screen -->
 <div id="authScreen" style="position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; justify-content:center; align-items:center; flex-direction:column;">
- <h2 style="margin-bottom:20px; color:var(--primary);">Call-Assist Agent Login</h2>
- <input type="email" id="email" placeholder="Email" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
- <input type="password" id="password" placeholder="Password" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
- <button class="btn btn-start" onclick="login()" style="width:250px; padding:12px;">Login</button>
+  <h2 style="margin-bottom:20px; color:var(--primary);">Call-Assist Agent Login</h2>
+  <input type="email" id="email" placeholder="Email" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
+  <input type="password" id="password" placeholder="Password" style="padding:10px; margin-bottom:10px; border-radius:8px; border:1px solid #334155; background:#000; color:white; width:250px; outline:none;">
+  <button class="btn btn-start" onclick="login()" style="width:250px; padding:12px;">Login</button>
 </div>
 
 <!-- Main App -->
 <div id="appScreen" style="display:none; height:100%; flex-direction:column;">
- <div class="top-bar">
- <div style="display:flex; align-items:center; gap:15px;">
- <div class="timer-box" id="timerDisplay">00:00</div>
- <div class="cost-box" id="costDisplay">0.00 $</div>
- </div>
- <div style="display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end;">
- <button class="btn btn-memory" onclick="toggleMemory()">🧠 ذاكرة الشركة</button>
- <button class="btn btn-auto" id="autoModeBtn" onclick="toggleAutoMode()">🎙️ الوضع الآلي</button>
- <button class="btn btn-start" id="startCallBtn" onclick="startCall()">بدء المكالمة</button>
- <button class="btn btn-end" id="endCallBtn" onclick="endCall()">إنهاء</button>
- </div>
- </div>
+  <div class="top-bar">
+    <div style="display:flex; align-items:center; gap:15px;">
+      <div class="timer-box" id="timerDisplay">00:00</div>
+      <div class="cost-box" id="costDisplay">0.00 $</div>
+    </div>
+    <div style="display:flex; gap:5px;">
+      <button class="btn btn-memory" onclick="toggleMemory()">🧠 ذاكرة الشركة</button>
+      <button class="btn btn-start" id="startCallBtn" onclick="startCall()">بدء المكالمة</button>
+      <button class="btn btn-end" id="endCallBtn" onclick="endCall()">إنهاء</button>
+    </div>
+  </div>
 
- <div class="split-view">
- <div class="side">
- <div class="side-header">الوكيل (أنت) - <span id="agentLangLabel">AR</span></div>
- <div class="chat-area" id="agentChat"></div>
- </div>
- <div class="side">
- <div class="side-header">العميل - <span id="customerLangLabel">DE</span></div>
- <div class="chat-area" id="customerChat"></div>
- </div>
- </div>
+  <div class="split-view">
+    <!-- Agent Side -->
+    <div class="side">
+      <div class="side-header">الوكيل (أنت) - <span id="agentLangLabel">AR</span></div>
+      <div class="chat-area" id="agentChat"></div>
+    </div>
+    <!-- Customer Side -->
+    <div class="side">
+      <div class="side-header">العميل - <span id="customerLangLabel">DE</span></div>
+      <div class="chat-area" id="customerChat"></div>
+    </div>
+  </div>
 
- <div style="padding: 0 10px;">
- <div id="editorContainer" class="editor-area">
- <div style="font-size:12px; color:#94a3b8; margin-bottom:5px;">عدّل النص قبل الترجمة:</div>
- <textarea id="textEditor"></textarea>
- <div class="editor-actions">
- <button class="btn btn-cancel" onclick="cancelEdit()">إلغاء</button>
- <button class="btn btn-send" onclick="sendForTranslation()">ترجمة وإرسال</button>
- </div>
- </div>
- </div>
+  <!-- Editor Overlay -->
+  <div style="padding: 0 10px;">
+      <div id="editorContainer" class="editor-area">
+        <div style="font-size:12px; color:#94a3b8; margin-bottom:5px;">عدّل النص قبل الترجمة:</div>
+        <textarea id="textEditor"></textarea>
+        <div class="editor-actions">
+          <button class="btn btn-cancel" onclick="cancelEdit()">إلغاء</button>
+          <button class="btn btn-send" onclick="sendForTranslation()">ترجمة وإرسال</button>
+        </div>
+      </div>
+  </div>
 
- <div class="controls">
- <div class="controls-row">
- <div class="lang-selects">
- <select id="agentLang" onchange="document.getElementById('agentLangLabel').innerText=this.value.toUpperCase()">
- <option value="ar">العربية</option><option value="en">English</option><option value="fr">Français</option>
- <option value="de">Deutsch</option><option value="es">Español</option><option value="it">Italian
+  <!-- Controls -->
+  <div class="controls">
+    <div class="controls-row">
+      <div class="lang-selects">
+        <!-- إضافة اللغات الجديدة للوكيل -->
+        <select id="agentLang" onchange="document.getElementById('agentLangLabel').innerText=this.value.toUpperCase()">
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+          <option value="nl">Nederlands</option>
+        </select>
+        <!-- إضافة اللغات الجديدة للعميل -->
+        <select id="customerLang" onchange="document.getElementById('customerLangLabel').innerText=this.value.toUpperCase()">
+          <option value="de">Deutsch</option>
+          <option value="ar">العربية</option>
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+          <option value="nl">Nederlands</option>
+        </select>
+      </div>
+      <!-- زر المايكروفون مع دعم اللمس للهواتف -->
+      <button class="mic-btn" id="pttBtn" 
+              onpointerdown="startPTT(event)" 
+              onpointerup="stopPTT(event)" 
+              onpointerleave="stopPTT(event)" 
+              disabled>🎤</button>
+    </div>
+    
+    <!-- شريط الكتابة اليدوية -->
+    <div class="input-row">
+      <input type="text" id="manualInput" placeholder="أو اكتب رسالة هنا..." onkeypress="handleManualEnter(event)">
+      <button onclick="sendManualText()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- Memory Modal -->
+<div class="modal" id="memoryModal">
+  <div class="modal-content">
+    <h3 style="margin-bottom:10px;">🧠 ذاكرة الشركة</h3>
+    <p style="font-size:12px; color:#94a3b8; margin-bottom:10px;">تُرسل هذه المعلومات للذكاء الاصطناعي مع كل ترجمة (سياسات، منتجات، أسعار...).</p>
+    <textarea id="memoryText" placeholder="مثال: نحن شركة شحن، مدة التوصيل 3 أيام، سياسة الاسترجاع خلال 14 يوماً..."></textarea>
+    <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <button class="btn btn-cancel" onclick="toggleMemory()">إغلاق</button>
+      <button class="btn btn-start" onclick="saveMemory()">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================= CONFIG =================
+const firebaseConfig = {
+  apiKey: "AIzaSyCCp08HOuP4vpXlvBkzjOgGAwQoeTsOKJ8",
+  authDomain: "chat-core-app.firebaseapp.com",
+  projectId: "chat-core-app",
+  storageBucket: "chat-core-app.firebasestorage.app",
+  messagingSenderId: "216958872856",
+  appId: "1:216958872856:web:f03d559611b327c91b426d"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const API_URL = "https://call-assist-ibj6.onrender.com"; 
+
+// ================= STATE =================
+let currentUser = null;
+let currentCallId = null;
+let callInterval = null;
+let callStartTime = null;
+let pricePerMinute = 0.50; 
+let companyMemory = "";
+let recognition = null;
+let isRecording = false;
+
+// ================= AUTH =================
+function login() {
+  const email = document.getElementById('email').value;
+  const pass = document.getElementById('password').value;
+  auth.signInWithEmailAndPassword(email, pass).catch(err => alert(err.message));
+}
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    currentUser = user;
+    document.getElementById('authScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'flex';
+    loadCompanyMemory();
+    initSpeechRecognition();
+  } else {
+    currentUser = null;
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+  }
+});
+
+// ================= SPEECH RECOGNITION (STT) =================
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    console.warn("متصفحك لا يدعم التعرف على الصوت. استخدم Chrome.");
+    return;
+  }
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  
+  recognition.onresult = (event) => {
+    let finalTranscript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript;
+      }
+    }
+    if (finalTranscript) {
+      document.getElementById('textEditor').value += finalTranscript + ' ';
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Speech error", event.error);
+    stopPTT();
+  };
+}
+
+// ================= PUSH-TO-TALK (MOBILE FRIENDLY) =================
+function startPTT(e) {
+  if (e) e.preventDefault(); 
+  if (!currentCallId) return alert("ابدأ المكالمة أولاً");
+  if (isRecording || !recognition) return;
+  
+  isRecording = true;
+  document.getElementById('pttBtn').classList.add('recording');
+  
+  const editorContainer = document.getElementById('editorContainer');
+  editorContainer.style.display = 'block';
+  document.getElementById('textEditor').value = "";
+  
+  const lang = document.getElementById('agentLang').value;
+  // دعم التعرف على الصوت للغات الجديدة
+  const langMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
+  recognition.lang = langMap[lang] || 'en-US';
+  
+  try { recognition.start(); } catch(e) { console.log(e); }
+}
+
+function stopPTT(e) {
+  if (e) e.preventDefault();
+  if (!isRecording) return;
+  isRecording = false;
+  document.getElementById('pttBtn').classList.remove('recording');
+  try { recognition.stop(); } catch(e) {}
+}
+
+function cancelEdit() {
+  document.getElementById('editorContainer').style.display = 'none';
+  document.getElementById('textEditor').value = "";
+}
+
+// ================= MANUAL TEXT INPUT =================
+function handleManualEnter(e) {
+  if (e.key === 'Enter') sendManualText();
+}
+
+function sendManualText() {
+  const text = document.getElementById('manualInput').value.trim();
+  if (!text) return;
+  document.getElementById('manualInput').value = '';
+  
+  const sourceLang = document.getElementById('agentLang').value;
+  addMessage('agentChat', text, 'msg-original', sourceLang);
+  processTranslation(text, sourceLang);
+}
+
+// ================= TRANSLATION & AI =================
+async function sendForTranslation() {
+  const text = document.getElementById('textEditor').value.trim();
+  if (!text) return cancelEdit();
+
+  const sourceLang = document.getElementById('agentLang').value;
+  document.getElementById('editorContainer').style.display = 'none';
+  
+  addMessage('agentChat', text, 'msg-original', sourceLang);
+  processTranslation(text, sourceLang);
+}
+
+async function processTranslation(text, sourceLang) {
+  const targetLang = document.getElementById('customerLang').value;
+  
+  try {
+    const res = await fetch(`${API_URL}/ai/translate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text,
+        source_lang: sourceLang,
+        target_lang: targetLang,
+        company_memory: companyMemory,
+        mode: 'translate',
+        provider: 'auto'
+      })
+    });
+    const data = await res.json();
+    
+    if (data.translated) {
+      addMessage('customerChat', data.translated, 'msg-translated', targetLang);
+      speakText(data.translated, targetLang);
+      logTurnToFirestore(text, data.translated, sourceLang, targetLang);
+    } else {
+      alert("فشل الترجمة: " + JSON.stringify(data));
+    }
+  } catch (e) {
+    console.error(e);
+    alert("خطأ في الاتصال بالخادم. تأكد من أن الخادم يعمل.");
+  }
+}
+
+// TTS (Text-to-Speech) - دعم اللغات الجديدة
+function speakText(text, langCode) {
+  if (!window.speechSynthesis) return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  const ttsMap = { 'ar':'ar-SA', 'en':'en-US', 'fr':'fr-FR', 'de':'de-DE', 'es':'es-ES', 'it':'it-IT', 'nl':'nl-NL' };
+  utterance.lang = ttsMap[langCode] || 'en-US';
+  speechSynthesis.speak(utterance);
+}
+
+// ================= UI HELPERS =================
+function addMessage(containerId, text, className, lang) {
+  const container = document.getElementById(containerId);
+  const div = document.createElement('div');
+  div.className = `msg ${className}`;
+  div.setAttribute('dir', 'auto');
+  div.innerHTML = `<span style="font-size:10px; opacity:0.5; display:block; margin-bottom:3px;">${lang.toUpperCase()}</span>${text}`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ================= CALL TIMER & BILLING =================
+function startCall() {
+  document.getElementById('startCallBtn').style.display = 'none';
+  document.getElementById('endCallBtn').style.display = 'block';
+  document.getElementById('pttBtn').disabled = false;
+  
+  currentCallId = db.collection('calls').doc().id;
+  callStartTime = Date.now();
+  
+  db.collection('calls').doc(currentCallId).set({
+    agentId: currentUser.uid,
+    startAt: firebase.firestore.FieldValue.serverTimestamp(),
+    status: 'active'
+  }).catch(e => console.log("DB Error:", e));
+
+  callInterval = setInterval(() => {
+    const diff = Date.now() - callStartTime;
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    document.getElementById('timerDisplay').textContent = 
+      `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      
+    const cost = (diff / 60000) * pricePerMinute;
+    document.getElementById('costDisplay').textContent = `${cost.toFixed(2)} $`;
+  }, 1000);
+}
+
+async function endCall() {
+  if (callInterval) clearInterval(callInterval);
+  if (isRecording) stopPTT();
+  
+  document.getElementById('startCallBtn').style.display = 'block';
+  document.getElementById('endCallBtn').style.display = 'none';
+  document.getElementById('pttBtn').disabled = true;
+  
+  if (currentCallId) {
+    const durationSec = Math.floor((Date.now() - callStartTime) / 1000);
+    const totalCost = (durationSec / 60) * pricePerMinute;
+    try {
+      await db.collection('calls').doc(currentCallId).update({
+        endAt: firebase.firestore.FieldValue.serverTimestamp(),
+        durationSec: durationSec,
+        totalCost: totalCost,
+        status: 'completed'
+      });
+    } catch(e) { console.log("DB Error:", e); }
+  }
+  
+  document.getElementById('timerDisplay').textContent = "00:00";
+  document.getElementById('costDisplay').textContent = "0.00 $";
+  currentCallId = null;
+}
+
+// ================= FIRESTORE LOGGING =================
+function logTurnToFirestore(original, translated, srcLang, destLang) {
+  if (!currentCallId) return;
+  db.collection('calls').doc(currentCallId).collection('turns').add({
+    original: original,
+    translated: translated,
+    sourceLang: srcLang,
+    targetLang: destLang,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(e => console.log("DB Log Error:", e));
+}
+
+// ================= COMPANY MEMORY =================
+function toggleMemory() {
+  const modal = document.getElementById('memoryModal');
+  modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+}
+
+async function loadCompanyMemory() {
+  try {
+    const doc = await db.collection('settings').doc('company_memory').get();
+    if (doc.exists) {
+      companyMemory = doc.data().content || "";
+      document.getElementById('memoryText').value = companyMemory;
+    }
+  } catch(e) { console.log("Memory load error:", e); }
+}
+
+async function saveMemory() {
+  const text = document.getElementById('memoryText').value;
+  try {
+    await db.collection('settings').doc('company_memory').set({ content: text });
+    companyMemory = text;
+    toggleMemory();
+    alert("تم حفظ ذاكرة الشركة بنجاح.");
+  } catch(e) { alert("خطأ في الحفظ: " + e.message); }
+}
+</script>
+</body>
+</html>
