@@ -4,9 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>لوحة تحكم مركز النداء الذكي | Admin</title>
+
+<!-- روابط مكتبات Firebase الصحيحة -->
 <script src="https://gstatic.com"></script>
 <script src="https://gstatic.com"></script>
 <script src="https://gstatic.com"></script>
+
 <style>
 :root {
   --bg: #0f172a; --panel: #1e293b; --border: rgba(255,255,255,0.1);
@@ -28,6 +31,7 @@ textarea { height: 140px; resize: vertical; }
 .btn-success { background: var(--success); }
 .btn-danger { background: var(--danger); }
 .btn:hover { opacity: 0.9; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
 table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
 th, td { padding: 12px; text-align: right; border-bottom: 1px solid var(--border); }
 th { color: #94a3b8; font-weight: 600; }
@@ -41,8 +45,8 @@ th { color: #94a3b8; font-weight: 600; }
 <div id="authBox" style="max-width: 350px; margin: 100px auto; background: var(--panel); padding: 25px; border-radius: 12px; border: 1px solid var(--border); text-align: center;">
   <h2 style="margin-bottom: 20px; color: var(--primary);">دخول صاحب المركز</h2>
   <input type="email" id="email" placeholder="البريد الإلكتروني" style="margin-bottom: 10px;">
-  <input type="password" id="password" placeholder="كلمة المرور" style="margin-bottom: 15px;">
-  <button class="btn btn-primary" style="width: 100%;" onclick="login()">تسجيل الدخول</button>
+  <input type="password" id="password" placeholder="كلمة المرور" style="margin-bottom: 15px;" onkeydown="if(event.key==='Enter') login()">
+  <button id="loginBtn" class="btn btn-primary" style="width: 100%;" onclick="login()">تسجيل الدخول</button>
 </div>
 
 <div id="dashboard" class="container" style="display: none;">
@@ -117,14 +121,31 @@ const firebaseConfig = {
   messagingSenderId: "216958872856",
   appId: "1:216958872856:web:f03d559611b327c91b426d"
 };
+
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
 function login() {
-  const email = document.getElementById('email').value;
+  const email = document.getElementById('email').value.trim();
   const pass = document.getElementById('password').value;
-  auth.signInWithEmailAndPassword(email, pass).catch(e => alert(e.message));
+  const btn = document.getElementById('loginBtn');
+
+  if (!email || !pass) {
+    return alert("يرجى إدخال البريد الإلكتروني وكلمة المرور");
+  }
+
+  btn.disabled = true;
+  btn.textContent = "جاري الدخول...";
+
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(e => {
+      alert("خطأ في الدخول: " + e.message);
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = "تسجيل الدخول";
+    });
 }
 
 auth.onAuthStateChanged(user => {
@@ -140,12 +161,16 @@ auth.onAuthStateChanged(user => {
 });
 
 async function loadSettings() {
-  const doc = await db.collection('settings').doc('company_memory').get();
-  if (doc.exists) {
-    const data = doc.data();
-    document.getElementById('agentName').value = data.agentName || "";
-    document.getElementById('agentLang').value = data.agentLang || "ar-TN";
-    document.getElementById('companyMemory').value = data.content || "";
+  try {
+    const doc = await db.collection('settings').doc('company_memory').get();
+    if (doc.exists) {
+      const data = doc.data();
+      document.getElementById('agentName').value = data.agentName || "";
+      document.getElementById('agentLang').value = data.agentLang || "ar-TN";
+      document.getElementById('companyMemory').value = data.content || "";
+    }
+  } catch (e) {
+    console.error("Error loading settings:", e);
   }
 }
 
@@ -154,10 +179,17 @@ async function saveAgentSettings() {
   const agentLang = document.getElementById('agentLang').value;
   const content = document.getElementById('companyMemory').value.trim();
   
-  await db.collection('settings').doc('company_memory').set({
-    agentName, agentLang, content, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
-  alert("✅ تم تحديث عقل الوكيل بنجاح!");
+  try {
+    await db.collection('settings').doc('company_memory').set({
+      agentName,
+      agentLang,
+      content,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    alert("✅ تم تحديث عقل الوكيل بنجاح!");
+  } catch (e) {
+    alert("❌ خطأ أثناء الحفظ: " + e.message);
+  }
 }
 
 async function addLead() {
@@ -166,13 +198,21 @@ async function addLead() {
   const note = document.getElementById('leadNote').value.trim();
   if (!name || !phone) return alert("يرجى إدخال الاسم ورقم الهاتف");
 
-  await db.collection('leads').add({
-    name, phone, note, status: 'pending', summary: '-',
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  document.getElementById('leadName').value = "";
-  document.getElementById('leadPhone').value = "";
-  document.getElementById('leadNote').value = "";
+  try {
+    await db.collection('leads').add({
+      name,
+      phone,
+      note,
+      status: 'pending',
+      summary: '-',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('leadName').value = "";
+    document.getElementById('leadPhone').value = "";
+    document.getElementById('leadNote').value = "";
+  } catch (e) {
+    alert("❌ خطأ أثناء الإضافة: " + e.message);
+  }
 }
 
 function listenToLeads() {
@@ -185,15 +225,17 @@ function listenToLeads() {
       const statusText = d.status === 'completed' ? 'تم الاتصال' : 'في الانتظار';
       tbody.innerHTML += `
         <tr>
-          <td>${d.name}<br><span style="font-size:11px; color:#64748b;">${d.note || ''}</span></td>
-          <td dir="ltr" style="text-align:right;">${d.phone}</td>
+          <td>${d.name || '-'}</td>
+          <td dir="ltr" style="text-align: right;">${d.phone || '-'}</td>
           <td><span class="badge ${badgeClass}">${statusText}</span></td>
-          <td>${d.summary}</td>
-        </tr>`;
+          <td>${d.summary || '-'}</td>
+        </tr>
+      `;
     });
+  }, err => {
+    console.error("Error listening to leads:", err);
   });
 }
 </script>
 </body>
 </html>
-
